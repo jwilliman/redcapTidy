@@ -42,17 +42,22 @@ tidy_redcap <- function(folder, ids = c("id", "redcap_event_name")) {
   for (x in v.chr)
     RC$rcrd[, x][RC$rcrd[, x] == ""] <- NA
 
-  ## Dates and date-time variables
-  v.dt <- RC$dd[[1]][RC$dd$Text.Validation.Type.OR.Show.Slider.Number == "date_dmy"]
-  RC$rcrd[, v.dt] <- lapply(RC$rcrd[, v.dt], as.Date)
 
-  v.dttm <- grep("timestamp", names(RC$rcrd), value = TRUE)
-  RC$rcrd[, v.dttm] <- lapply(RC$rcrd[, v.dttm], as.POSIXct)
+  ## Dates and date-time variables
+  v.dt <- RC$dd[[1]][grepl("date_", RC$dd$Text.Validation.Type.OR.Show.Slider.Number)]
+  RC$rcrd[, v.dt] <- lapply(RC$rcrd[, v.dt], as.Date, format = "%Y-%m-%d")
+
+  v.dttm <- c(
+    RC$dd[[1]][grepl("datetime_", RC$dd$Text.Validation.Type.OR.Show.Slider.Number)],
+    grep("timestamp", names(RC$rcrd), value = TRUE))
+  RC$rcrd[, v.dttm] <- lapply(RC$rcrd[, v.dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
+
 
   ## Logical (checkboxs)
   v.lg <- c(
     RC$dd[[1]][RC$dd$Field.Type == "yesno" |
-                 RC$dd$Choices..Calculations..OR.Slider.Labels == "0, No | 1, Yes"],
+                 RC$dd$Choices..Calculations..OR.Slider.Labels %in% c(
+                   "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
     unlist(sapply(RC$dd[[1]][RC$dd$Field.Type == "checkbox"], function(x)
       grep(paste0(x, "___"), names(RC$rcrd), value = TRUE))),
     grep("complete$", names(RC$rcrd), value = TRUE))
@@ -60,8 +65,7 @@ tidy_redcap <- function(folder, ids = c("id", "redcap_event_name")) {
 
 
   ## Factors (radio)
-  v.fct <- RC$dd[[1]][RC$dd$Field.Type == "radio" & !(RC$dd[[1]] %in% v.lg)]
-  x = v.fct[9]
+  v.fct <- RC$dd[[1]][RC$dd$Field.Type %in% c("radio", "dropdown") & !(RC$dd[[1]] %in% v.lg)]
 
   fct_label <- function(x) {
     ## Replace first ',' with '|' before repeating split.
