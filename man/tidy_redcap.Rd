@@ -4,10 +4,12 @@
 \alias{tidy_redcap}
 \title{Tidy list of datasets from REDCap.}
 \usage{
-tidy_redcap(object, ids = NULL)
+tidy_redcap(object, ids = NULL, label = FALSE)
 }
 \arguments{
 \item{ids}{Names of identifiers, for inclusion on all output datasets.}
+
+\item{label}{Add labels to variables. Supply name of labelling package, \code{Hmisc} or \code{sjlabelled}.}
 
 \item{folder}{The folder containing the files downloaded from the REDCap
 database. The four files required include the Data Dictionary, Events

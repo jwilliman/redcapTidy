@@ -74,12 +74,13 @@ import_rc_csv <- function(folder) {
 #'   'Designate Instruments for My Events' tab), and the raw Record data (under
 #'   the 'My Reports & Exports' tab). All files should be saved as .csv.
 #' @param ids Names of identifiers, for inclusion on all output datasets.
+#' @param label Add labels to variables. Supply name of labelling package, \code{Hmisc} or \code{sjlabelled}.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-tidy_redcap <- function(object, ids = NULL) {
+tidy_redcap <- function(object, ids = NULL, label = FALSE) {
 
   if(is.null(ids))
     ids <- c(names(object$rcrd)[[1]], grep("redcap",names(object$rcrd), value = TRUE, ignore.case = TRUE))
@@ -159,10 +160,17 @@ tidy_redcap <- function(object, ids = NULL) {
           is.na(object$rcrd$redcap_repeat_instrument)
         , unique(c(ids, cols))]
 
-    labs <- make_labels(vars, object$dd)
 
-    Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
-      ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
+    if(label != FALSE) {
+      labs <- make_labels(vars, object$dd)
+
+      if(label == "Hmisc")
+        Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
+          ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
+      else if(grepl("^sj", label))
+        data <- sjlabelled::set_label(data, label = labs$label[match(names(data), labs$col)])
+
+    }
 
     return(data)
 
@@ -185,10 +193,16 @@ tidy_redcap <- function(object, ids = NULL) {
 
     data <- object$rcrd[object$rcrd$redcap_event_name == event, unique(c(ids, cols))]
 
-    labs <- make_labels(vars, object$dd)
+    if(label != FALSE) {
+      labs <- make_labels(vars, object$dd)
 
-    Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
-      ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
+      if(label == "Hmisc")
+        Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
+          ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
+      else if(grepl("^sj", label))
+        data <- sjlabelled::set_label(data, label = labs$label[match(names(data), labs$col)])
+
+    }
 
     return(data)
 
