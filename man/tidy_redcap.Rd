@@ -4,12 +4,17 @@
 \alias{tidy_redcap}
 \title{Tidy list of datasets from REDCap.}
 \usage{
-tidy_redcap(object, ids = NULL, label = FALSE)
+tidy_redcap(object, ids = NULL, label = FALSE, repeated = "exclude")
 }
 \arguments{
 \item{ids}{Names of identifiers, for inclusion on all output datasets.}
 
-\item{label}{Add labels to variables. Supply name of labelling package, \code{Hmisc} or \code{sjlabelled}.}
+\item{label}{Add labels to variables. Supply name of labelling package,
+\code{Hmisc} or \code{sjlabelled}.}
+
+\item{repeated}{How shall repeated forms be treated in datasets assembled by
+event. Options are: exclude, include, or nest. Nest uses `tidyr` package to
+collapse by row id.}
 
 \item{folder}{The folder containing the files downloaded from the REDCap
 database. The four files required include the Data Dictionary, Events
@@ -21,5 +26,6 @@ the 'My Reports & Exports' tab). All files should be saved as .csv.}
 
 }
 \description{
-Clean raw .csv data exported from a REDCap database, and export a list of data.frames
+Clean raw .csv data exported from a REDCap database, and export a list of
+data.frames
 }

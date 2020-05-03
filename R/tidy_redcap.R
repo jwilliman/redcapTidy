@@ -66,7 +66,8 @@ import_rc_csv <- function(folder) {
 
 #' Tidy list of datasets from REDCap.
 #'
-#' Clean raw .csv data exported from a REDCap database, and export a list of data.frames
+#' Clean raw .csv data exported from a REDCap database, and export a list of
+#' data.frames
 #'
 #' @param folder The folder containing the files downloaded from the REDCap
 #'   database. The four files required include the Data Dictionary, Events
@@ -74,47 +75,52 @@ import_rc_csv <- function(folder) {
 #'   'Designate Instruments for My Events' tab), and the raw Record data (under
 #'   the 'My Reports & Exports' tab). All files should be saved as .csv.
 #' @param ids Names of identifiers, for inclusion on all output datasets.
-#' @param label Add labels to variables. Supply name of labelling package, \code{Hmisc} or \code{sjlabelled}.
+#' @param label Add labels to variables. Supply name of labelling package,
+#'   \code{Hmisc} or \code{sjlabelled}.
+#' @param repeated How shall repeated forms be treated in datasets assembled by
+#'   event. Options are: exclude, include, or nest. Nest uses `tidyr` package to
+#'   collapse by row id.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-tidy_redcap <- function(object, ids = NULL, label = FALSE) {
+tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   if(is.null(ids))
-    ids <- c(names(object$rcrd)[[1]], grep("redcap",names(object$rcrd), value = TRUE, ignore.case = TRUE))
+    ids <- names(object$rcrd)[[1]]
+  ids_rc <- c(ids, grep("^redcap", names(object$rcrd), value = TRUE, ignore.case = TRUE))
 
   # 5 Format and clean variables ---------------------------------------------------------
   ## Character fields (replace blanks with NA)
-  v.chr <- names(object$rcrd)[sapply(object$rcrd, is.character)]
-  for (x in v.chr)
+  cols_chr <- names(object$rcrd)[sapply(object$rcrd, is.character)]
+  for (x in cols_chr)
     object$rcrd[, x][object$rcrd[, x] == ""] <- NA
 
 
   ## Dates and date-time variables
-  v.dt <- object$dd[[1]][grepl("date_", object$dd$Text.Validation.Type.OR.Show.Slider.Number)]
-  object$rcrd[, v.dt] <- lapply(object$rcrd[, v.dt], as.Date, format = "%Y-%m-%d")
+  cols_dt <- object$dd[[1]][grepl("date_", object$dd$Text.Validation.Type.OR.Show.Slider.Number)]
+  object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.Date, format = "%Y-%m-%d")
 
-  v.dttm <- c(
+  cols_dttm <- c(
     object$dd[[1]][grepl("datetime_", object$dd$Text.Validation.Type.OR.Show.Slider.Number)],
     grep("timestamp", names(object$rcrd), value = TRUE))
-  object$rcrd[, v.dttm] <- lapply(object$rcrd[, v.dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
+  object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
 
 
   ## Logical (checkboxs)
-  v.lg <- c(
+  cols_lg <- c(
     object$dd[[1]][object$dd$Field.Type == "yesno" |
                  object$dd$Choices..Calculations..OR.Slider.Labels %in% c(
                    "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
     unlist(sapply(object$dd[[1]][object$dd$Field.Type == "checkbox"], function(x)
       grep(paste0(x, "___"), names(object$rcrd), value = TRUE))),
     grep("complete$", names(object$rcrd), value = TRUE))
-  object$rcrd[, v.lg] <- lapply(object$rcrd[, v.lg], as.logical)
+  object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], as.logical)
 
 
   ## Factors (radio)
-  v.fct <- object$dd[[1]][object$dd$Field.Type %in% c("radio", "dropdown") & !(object$dd[[1]] %in% v.lg)]
+  cols_fct <- object$dd[[1]][object$dd$Field.Type %in% c("radio", "dropdown") & !(object$dd[[1]] %in% cols_lg)]
 
   fct_label <- function(x) {
     ## Replace first ',' with '|' before repeating split.
@@ -124,7 +130,7 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE) {
     factor(object$rcrd[, x], levels = as.integer(lbls[1, ]), labels = lbls[2, ])
   }
 
-  object$rcrd[, v.fct] <- lapply(v.fct, fct_label)
+  object$rcrd[, cols_fct] <- lapply(cols_fct, fct_label)
 
 
   # 6 Create list of datasets ---------------------------------------------------
@@ -139,7 +145,8 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE) {
     object$rcrd$redcap_repeat_instrument
   )])
 
-  dat_ed$form <- sapply(forms, function(form) {
+  ## Create list with name, columns, events, and repeating status by form
+  form_data <- sapply(forms, function(form) {
 
     vars  <- object$dd[[1]][object$dd$Form.Name %in% form]
     cols  <- unlist(sapply(vars, function(x)
@@ -148,21 +155,28 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE) {
         , names(object$rcrd), value = TRUE
       )))
     events <- object$inst$unique_event_name[object$inst$form == form]
+    repeating <- form %in% forms_rpt
+    return(list(name = form, vars = vars, cols = cols, events = events, repeating = repeating))
 
-    if(form %in% forms_rpt)
-    data  <- object$rcrd[
-      object$rcrd$redcap_event_name %in% events &
-        object$rcrd$redcap_repeat_instrument %in% form
-      , unique(c(ids, cols))]
-    else
+  }, simplify = FALSE)
+
+  ## Create list of data by form
+  dat_ed$form <-  lapply(form_data, function(form){
+
+    if(form$repeating) {
       data  <- object$rcrd[
-        object$rcrd$redcap_event_name %in% events &
+        object$rcrd$redcap_event_name %in% form$events &
+          object$rcrd$redcap_repeat_instrument %in% form$name
+        , unique(c(ids_rc, form$cols))]
+    } else {
+      data  <- object$rcrd[
+        object$rcrd$redcap_event_name %in% form$events &
           is.na(object$rcrd$redcap_repeat_instrument)
-        , unique(c(ids, cols))]
-
+        , unique(c(ids_rc, form$cols))]
+    }
 
     if(label != FALSE) {
-      labs <- make_labels(vars, object$dd)
+      labs <- make_labels(form$vars, object$dd)
 
       if(label == "Hmisc")
         Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
@@ -174,7 +188,7 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE) {
 
     return(data)
 
-  }, simplify = FALSE)
+  })
 
 
 
@@ -183,18 +197,51 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE) {
 
   dat_ed$event <- sapply(events, function(event) {
 
-    forms <- object$inst$form[object$inst$unique_event_name == event]
-    vars  <- object$dd[[1]][object$dd$Form.Name %in% forms]
-    cols  <- unlist(sapply(vars, function(x)
-      grep(
-        paste(paste0("^", x, c("$", "___")), collapse = "|")
-        , names(object$rcrd), value = TRUE
-      )))
+    ## Approach 2: Identify required forms
+    forms  <- form_data[sapply(form_data, function(form) event %in% form$events)]
 
-    data <- object$rcrd[object$rcrd$redcap_event_name == event, unique(c(ids, cols))]
+    ### Separate by whether they are repeating or not.
+    cols       <- sapply(forms, "[[", "cols")
+    cols_rpt   <- sapply(forms[ sapply(forms, "[[", "repeating")], "[[", "cols")
+    cols_norpt <- sapply(forms[!sapply(forms, "[[", "repeating")], "[[", "cols")
+
+
+    if(repeated == "include") {
+
+      data <- object$rcrd[
+        object$rcrd$redcap_event_name == event
+        , unique(c(ids_rc, unlist(cols)))]
+
+    } else {
+
+      data <- object$rcrd[
+        object$rcrd$redcap_event_name == event &
+          is.na(object$rcrd$redcap_repeat_instrument)
+        , unique(c(ids, unlist(cols_norpt)))]
+
+      if(repeated == "nest") {
+
+        dats_rpt <- sapply(names(cols_rpt), function(x) {
+
+          dat_t1 <- object$rcrd[
+            object$rcrd$redcap_event_name == event &
+              object$rcrd$redcap_repeat_instrument %in% x
+            , unique(c(ids, "redcap_repeat_instance", unlist(cols_rpt[x])))]
+
+          tidyr::nest(dat_t1, !! x := -ids)
+
+        }, simplify = FALSE)
+
+
+        data <- Reduce(function(...) merge(..., all = TRUE, by = ids)
+                       , c(norpt = list(data), dats_rpt))
+
+      }
+
+    }
 
     if(label != FALSE) {
-      labs <- make_labels(vars, object$dd)
+      labs <- make_labels(unlist(sapply(form_data, "[[", "vars")), object$dd)
 
       if(label == "Hmisc")
         Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
