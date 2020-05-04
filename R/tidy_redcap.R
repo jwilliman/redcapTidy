@@ -56,6 +56,8 @@ import_rc_csv <- function(folder) {
     rcrd = sort(list.files(folder, "DATA"), decreasing = TRUE)[1]
   )
 
+  Inputs <- Inputs[!sapply(Inputs, is.na)]
+
   ## Import data
   object <- lapply(file.path(folder, Inputs), read.csv, stringsAsFactors = FALSE)
   names(object) <- names(Inputs)
@@ -111,8 +113,8 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
   ## Logical (checkboxs)
   cols_lg <- c(
     object$dd[[1]][object$dd$Field.Type == "yesno" |
-                 object$dd$Choices..Calculations..OR.Slider.Labels %in% c(
-                   "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
+                     object$dd$Choices..Calculations..OR.Slider.Labels %in% c(
+                       "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
     unlist(sapply(object$dd[[1]][object$dd$Field.Type == "checkbox"], function(x)
       grep(paste0(x, "___"), names(object$rcrd), value = TRUE))),
     grep("complete$", names(object$rcrd), value = TRUE))
@@ -127,7 +129,7 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
     lbls <- sapply(strsplit(sub(",", "|", strsplit(
       object$dd$Choices..Calculations..OR.Slider.Labels[object$dd[[1]] == x],
       split = "\\|")[[1]]), "\\|"), trimws)
-    factor(object$rcrd[, x], levels = as.integer(lbls[1, ]), labels = lbls[2, ])
+    factor(object$rcrd[, x], levels = lbls[1, ], labels = lbls[2, ])
   }
 
   object$rcrd[, cols_fct] <- lapply(cols_fct, fct_label)
@@ -154,7 +156,10 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
         paste(paste0("^", x, c("$", "___")), collapse = "|")
         , names(object$rcrd), value = TRUE
       )))
-    events <- object$inst$unique_event_name[object$inst$form == form]
+    if("evnt" %in% names(object))
+      events <- object$inst$unique_event_name[object$inst$form == form]
+    else
+      events <- NA
     repeating <- form %in% forms_rpt
     return(list(name = form, vars = vars, cols = cols, events = events, repeating = repeating))
 
@@ -165,15 +170,16 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
 
     if(form$repeating) {
       data  <- object$rcrd[
-        object$rcrd$redcap_event_name %in% form$events &
-          object$rcrd$redcap_repeat_instrument %in% form$name
+        object$rcrd$redcap_repeat_instrument %in% form$name
         , unique(c(ids_rc, form$cols))]
     } else {
       data  <- object$rcrd[
-        object$rcrd$redcap_event_name %in% form$events &
-          is.na(object$rcrd$redcap_repeat_instrument)
+        is.na(object$rcrd$redcap_repeat_instrument)
         , unique(c(ids_rc, form$cols))]
     }
+
+    if("redcap_event_name" %in% names(object$rcrd))
+      data <- data[object$rcrd$redcap_event_name %in% form$events,]
 
     if(label != FALSE) {
       labs <- make_labels(form$vars, object$dd)
@@ -193,69 +199,78 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
 
 
   ## Create list of datasets by event name --------------------------------------
-  events <- object$evnt$unique_event_name
+  if("evnt" %in% names(object)) {
 
-  dat_ed$event <- sapply(events, function(event) {
+    events <- object$evnt$unique_event_name
 
-    ## Approach 2: Identify required forms
-    forms  <- form_data[sapply(form_data, function(form) event %in% form$events)]
+    dat_ed$event <- sapply(events, function(event) {
 
-    ### Separate by whether they are repeating or not.
-    cols       <- sapply(forms, "[[", "cols")
-    cols_rpt   <- sapply(forms[ sapply(forms, "[[", "repeating")], "[[", "cols")
-    cols_norpt <- sapply(forms[!sapply(forms, "[[", "repeating")], "[[", "cols")
+      ## Approach 2: Identify required forms
+      forms  <- form_data[sapply(form_data, function(form) event %in% form$events)]
 
-
-    if(repeated == "include") {
-
-      data <- object$rcrd[
-        object$rcrd$redcap_event_name == event
-        , unique(c(ids_rc, unlist(cols)))]
-
-    } else {
-
-      data <- object$rcrd[
-        object$rcrd$redcap_event_name == event &
-          is.na(object$rcrd$redcap_repeat_instrument)
-        , unique(c(ids, unlist(cols_norpt)))]
-
-      if(repeated == "nest") {
-
-        dats_rpt <- sapply(names(cols_rpt), function(x) {
-
-          dat_t1 <- object$rcrd[
-            object$rcrd$redcap_event_name == event &
-              object$rcrd$redcap_repeat_instrument %in% x
-            , unique(c(ids, "redcap_repeat_instance", unlist(cols_rpt[x])))]
-
-          tidyr::nest(dat_t1, !! x := -ids)
-
-        }, simplify = FALSE)
+      ### Separate by whether they are repeating or not.
+      cols       <- sapply(forms, "[[", "cols")
+      cols_rpt   <- sapply(forms[ sapply(forms, "[[", "repeating")], "[[", "cols")
+      cols_norpt <- sapply(forms[!sapply(forms, "[[", "repeating")], "[[", "cols")
 
 
-        data <- Reduce(function(...) merge(..., all = TRUE, by = ids)
-                       , c(norpt = list(data), dats_rpt))
+      if(repeated == "include") {
+
+        data <- object$rcrd[
+          object$rcrd$redcap_event_name == event
+          , unique(c(ids_rc, unlist(cols)))]
+
+      } else {
+
+        data <- object$rcrd[
+          object$rcrd$redcap_event_name == event &
+            is.na(object$rcrd$redcap_repeat_instrument)
+          , unique(c(ids, unlist(cols_norpt)))]
+
+        if(repeated == "nest") {
+
+          dats_rpt <- sapply(names(cols_rpt), function(x) {
+
+            dat_t1 <- object$rcrd[
+              object$rcrd$redcap_event_name == event &
+                object$rcrd$redcap_repeat_instrument %in% x
+              , unique(c(ids, "redcap_repeat_instance", unlist(cols_rpt[x])))]
+
+            tidyr::nest(dat_t1, !! x := -ids)
+
+          }, simplify = FALSE)
+
+
+          data <- Reduce(function(...) merge(..., all = TRUE, by = ids)
+                         , c(norpt = list(data), dats_rpt))
+
+        }
 
       }
 
-    }
+      if(label != FALSE) {
+        labs <- make_labels(unlist(sapply(form_data, "[[", "vars")), object$dd)
 
-    if(label != FALSE) {
-      labs <- make_labels(unlist(sapply(form_data, "[[", "vars")), object$dd)
+        if(label == "Hmisc")
+          Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
+            ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
+        else if(grepl("^sj", label))
+          data <- sjlabelled::set_label(data, label = labs$label[match(names(data), labs$col)])
 
-      if(label == "Hmisc")
-        Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
-          ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
-      else if(grepl("^sj", label))
-        data <- sjlabelled::set_label(data, label = labs$label[match(names(data), labs$col)])
+      }
 
-    }
+      return(data)
 
-    return(data)
+    }, simplify = FALSE)
 
-  }, simplify = FALSE)
+  }
 
 
-  return(dat_ed)
+    return(dat_ed)
 
-}
+  }
+
+
+
+
+
