@@ -116,8 +116,7 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
                      object$dd$Choices..Calculations..OR.Slider.Labels %in% c(
                        "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
     unlist(sapply(object$dd[[1]][object$dd$Field.Type == "checkbox"], function(x)
-      grep(paste0(x, "___"), names(object$rcrd), value = TRUE))),
-    grep("complete$", names(object$rcrd), value = TRUE))
+      grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
   object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], as.logical)
 
 
@@ -147,7 +146,12 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
     object$rcrd$redcap_repeat_instrument
   )])
 
-  ## Create list with name, columns, events, and repeating status by form
+  ## Form completion
+  cols_cmp <- paste0(forms, "_complete")
+  object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
+    factor(x, levels = c(0,1,2), labels = c("Incomplete", "Unverified", "Complete")))
+
+    ## Create list with name, columns, events, and repeating status by form
   form_data <- sapply(forms, function(form) {
 
     vars  <- object$dd[[1]][object$dd$Form.Name %in% form]
@@ -156,6 +160,8 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
         paste(paste0("^", x, c("$", "___")), collapse = "|")
         , names(object$rcrd), value = TRUE
       )))
+    cols  <- c(cols, paste0(form, "_complete"))
+
     if("evnt" %in% names(object))
       events <- object$inst$unique_event_name[object$inst$form == form]
     else
