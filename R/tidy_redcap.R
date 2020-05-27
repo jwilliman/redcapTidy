@@ -185,7 +185,7 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
     }
 
     if("redcap_event_name" %in% names(object$rcrd))
-      data <- data[object$rcrd$redcap_event_name %in% form$events,]
+      data <- data[data$redcap_event_name %in% form$events,]
 
     if(label != FALSE) {
       labs <- make_labels(form$vars, object$dd)
