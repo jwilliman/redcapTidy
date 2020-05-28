@@ -1,28 +1,3 @@
-make_labels <- function(vars, dd) {
-  do.call(
-    rbind,
-    lapply(vars, function(x) {
-      checkbox <- dd$Field.Type[dd[[1]] == x] == "checkbox"
-      if(checkbox) {
-        mat <- sapply(strsplit(sub(",", "|", strsplit(
-          dd$Choices..Calculations..OR.Slider.Labels[dd[[1]] == x],
-          split = "\\|")[[1]]), "\\|"), trimws)
-        lab <- data.frame(
-          col = paste(x, mat[1,], sep = "___"),
-          label = paste(
-            dd$Field.Label[dd[[1]] == x],
-            mat[2,], sep = ":")
-          , stringsAsFactors = FALSE)
-      } else {
-        lab <- data.frame(
-          col = x, label = dd$Field.Label[dd[[1]] == x]
-          , stringsAsFactors = FALSE)
-      }
-      return(lab)
-    }))
-}
-
-
 #' Imported REDCap csv files and combine into single list.
 #'
 #' Clean raw .csv data exported from a REDCap database, and export a list of data.frames
@@ -38,7 +13,7 @@ make_labels <- function(vars, dd) {
 #' @export
 #'
 #' @examples
-import_rc_csv <- function(folder) {
+rc_read_csv <- function(folder) {
 
 
   ## Collect names of input data files ----------------------------------------
@@ -87,7 +62,7 @@ import_rc_csv <- function(folder) {
 #' @export
 #'
 #' @examples
-tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
+rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   if(is.null(ids))
     ids <- names(object$rcrd)[[1]]
@@ -188,14 +163,18 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
       data <- data[data$redcap_event_name %in% form$events,]
 
     if(label != FALSE) {
-      labs <- make_labels(form$vars, object$dd)
+      labs <- sapply(names(data), function(x) {
+        dats_raw$dd$Field.Label[dats_raw$dd[[1]] %in% gsub("___[0-9]+$","",x)]
+      })
+      labs[lengths(labs) == 0] <- NA_character_
 
-      if(label == "Hmisc")
-        Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
-          ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
-      else if(grepl("^sj", label))
-        data <- sjlabelled::set_label(data, label = labs$label[match(names(data), labs$col)])
-
+      if(label == "Hmisc") {
+        Hmisc::label(data[!is.na(unlist(labs))], self = FALSE) <- na.omit(unlist(labs))
+      } else if(grepl("^sj", label)) {
+        data <- sjlabelled::set_label(data, label = unlist(labs))
+      } else if(label == "labelled") {
+        labelled::var_label(data) <- labs[!is.na(labs)]
+      }
     }
 
     return(data)
@@ -255,14 +234,18 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
       }
 
       if(label != FALSE) {
-        labs <- make_labels(unlist(sapply(form_data, "[[", "vars")), object$dd)
+        labs <- sapply(names(data), function(x) {
+          dats_raw$dd$Field.Label[dats_raw$dd[[1]] %in% gsub("___[0-9]+$","",x)]
+        })
+        labs[lengths(labs) == 0] <- NA_character_
 
-        if(label == "Hmisc")
-          Hmisc::label(data, self = FALSE) <- sapply(names(data), function(col)
-            ifelse(col %in% labs$col, labs$label[labs$col == col], NA))
-        else if(grepl("^sj", label))
-          data <- sjlabelled::set_label(data, label = labs$label[match(names(data), labs$col)])
-
+        if(label == "Hmisc") {
+          Hmisc::label(data[!is.na(unlist(labs))], self = FALSE) <- na.omit(unlist(labs))
+        } else if(grepl("^sj", label)) {
+          data <- sjlabelled::set_label(data, label = unlist(labs))
+        } else if(label == "labelled") {
+          labelled::var_label(data) <- labs[!is.na(labs)]
+        }
       }
 
       return(data)
@@ -275,8 +258,3 @@ tidy_redcap <- function(object, ids = NULL, label = FALSE, repeated = "exclude")
     return(dat_ed)
 
   }
-
-
-
-
-
