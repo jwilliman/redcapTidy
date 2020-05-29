@@ -254,7 +254,6 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   }
 
-
     return(dat_ed)
 
   }
