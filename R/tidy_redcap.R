@@ -164,7 +164,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
     if(label != FALSE) {
       labs <- sapply(names(data), function(x) {
-        dats_raw$dd$Field.Label[dats_raw$dd[[1]] %in% gsub("___[0-9]+$","",x)]
+        object$dd$Field.Label[object$dd[[1]] %in% gsub("___[0-9]+$","",x)]
       })
       labs[lengths(labs) == 0] <- NA_character_
 
@@ -235,7 +235,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
       if(label != FALSE) {
         labs <- sapply(names(data), function(x) {
-          dats_raw$dd$Field.Label[dats_raw$dd[[1]] %in% gsub("___[0-9]+$","",x)]
+          object$dd$Field.Label[object$dd[[1]] %in% gsub("___[0-9]+$","",x)]
         })
         labs[lengths(labs) == 0] <- NA_character_
 
