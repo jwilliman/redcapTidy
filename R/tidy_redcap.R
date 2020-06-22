@@ -121,6 +121,9 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
     object$rcrd$redcap_repeat_instrument
   )])
 
+  if(is.null(forms_rpt))
+    repeated = "exclude"
+
   ## Form completion
   cols_cmp <- paste0(forms, "_complete")
   object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
@@ -190,23 +193,24 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
     dat_ed$event <- sapply(events, function(event) {
 
-      ## Approach 2: Identify required forms
+      ## Approach 2: Identify required forms and columns
       forms  <- form_data[sapply(form_data, function(form) event %in% form$events)]
+      cols   <- sapply(forms, "[[", "cols")
 
-      ### Separate by whether they are repeating or not.
-      cols       <- sapply(forms, "[[", "cols")
-      cols_rpt   <- sapply(forms[ sapply(forms, "[[", "repeating")], "[[", "cols")
-      cols_norpt <- sapply(forms[!sapply(forms, "[[", "repeating")], "[[", "cols")
+      ### Separate by whether repeating forms are included and how they should be treated
+      if(is.null(forms_rpt) | repeated == "include") {
 
-
-      if(repeated == "include") {
-
+        ## Keep all columns
         data <- object$rcrd[
           object$rcrd$redcap_event_name == event
           , unique(c(ids_rc, unlist(cols)))]
 
       } else {
 
+        cols_rpt   <- sapply(forms[ sapply(forms, "[[", "repeating")], "[[", "cols")
+        cols_norpt <- sapply(forms[!sapply(forms, "[[", "repeating")], "[[", "cols")
+
+        ## Keep only non-repeated columns. (Repeated == "exclude". Default.)
         data <- object$rcrd[
           object$rcrd$redcap_event_name == event &
             is.na(object$rcrd$redcap_repeat_instrument)
@@ -214,6 +218,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
         if(repeated == "nest") {
 
+          ## Keep and nest repeated columns
           dats_rpt <- sapply(names(cols_rpt), function(x) {
 
             dat_t1 <- object$rcrd[
@@ -226,7 +231,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
           }, simplify = FALSE)
 
 
-          data <- Reduce(function(...) merge(..., all = TRUE, by = ids)
+          data <- Reduce(function(...) merge(..., all = TRUE, by = ids, sort = FALSE)
                          , c(norpt = list(data), dats_rpt))
 
         }
