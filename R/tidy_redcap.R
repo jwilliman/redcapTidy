@@ -156,10 +156,12 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
       data  <- object$rcrd[
         object$rcrd$redcap_repeat_instrument %in% form$name
         , unique(c(ids_rc, form$cols))]
-    } else {
+    } else if (!is.null(forms_rpt)) {
       data  <- object$rcrd[
         is.na(object$rcrd$redcap_repeat_instrument)
         , unique(c(ids_rc, form$cols))]
+    } else {
+      data  <- object$rcrd[, unique(c(ids_rc, form$cols))]
     }
 
     if("redcap_event_name" %in% names(object$rcrd))
