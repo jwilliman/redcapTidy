@@ -37,6 +37,14 @@ rc_read_csv <- function(folder) {
   object <- lapply(file.path(folder, Inputs), read.csv, stringsAsFactors = FALSE)
   names(object) <- names(Inputs)
 
+  names(object$dd) <-  c(
+    "field_name", "form_name", "section_header", "field_type", "field_label",
+    "select_choices_or_calculations", "field_note",
+    "text_validation_type_or_show_slider_number", "text_validation_min",
+    "text_validation_max", "identifier", "branching_logic",
+    "required_field", "custom_alignment", "question_number",
+    "matrix_group_name", "matrix_ranking", "field_annotation")
+
   return(object)
 
 }
@@ -76,32 +84,32 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
 
   ## Dates and date-time variables
-  cols_dt <- object$dd[[1]][grepl("date_", object$dd$Text.Validation.Type.OR.Show.Slider.Number)]
+  cols_dt <- object$dd$field_name[grepl("date_", object$dd$text_validation_type_or_show_slider_number)]
   object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.Date, format = "%Y-%m-%d")
 
   cols_dttm <- c(
-    object$dd[[1]][grepl("datetime_", object$dd$Text.Validation.Type.OR.Show.Slider.Number)],
+    object$dd$field_name[grepl("datetime_", object$dd$text_validation_type_or_show_slider_number)],
     grep("timestamp", names(object$rcrd), value = TRUE))
   object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
 
 
   ## Logical (checkboxs)
   cols_lg <- c(
-    object$dd[[1]][object$dd$Field.Type == "yesno" |
-                     object$dd$Choices..Calculations..OR.Slider.Labels %in% c(
+    object$dd$field_name[object$dd$field_type == "yesno" |
+                     object$dd$select_choices_or_calculations %in% c(
                        "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
-    unlist(sapply(object$dd[[1]][object$dd$Field.Type == "checkbox"], function(x)
+    unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
       grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
   object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], as.logical)
 
 
   ## Factors (radio)
-  cols_fct <- object$dd[[1]][object$dd$Field.Type %in% c("radio", "dropdown") & !(object$dd[[1]] %in% cols_lg)]
+  cols_fct <- object$dd$field_name[object$dd$field_type %in% c("radio", "dropdown") & !(object$dd$field_name %in% cols_lg)]
 
   fct_label <- function(x) {
     ## Replace first ',' with '|' before repeating split.
     lbls <- sapply(strsplit(sub(",", "|", strsplit(
-      object$dd$Choices..Calculations..OR.Slider.Labels[object$dd[[1]] == x],
+      object$dd$select_choices_or_calculations[object$dd$field_name == x],
       split = "\\|")[[1]]), "\\|"), trimws)
     factor(object$rcrd[, x], levels = lbls[1, ], labels = lbls[2, ])
   }
@@ -115,7 +123,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   ## By form (data collection instrument)
   ### All forms
-  forms <- unique(object$dd$Form.Name)
+  forms <- unique(object$dd$form_name)
   ### Repeating forms
   forms_rpt <- unique(object$rcrd$redcap_repeat_instrument[!is.na(
     object$rcrd$redcap_repeat_instrument
@@ -132,7 +140,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
     ## Create list with name, columns, events, and repeating status by form
   form_data <- sapply(forms, function(form) {
 
-    vars  <- object$dd[[1]][object$dd$Form.Name %in% form]
+    vars  <- object$dd$field_name[object$dd$form_name %in% form]
     cols  <- unlist(sapply(vars, function(x)
       grep(
         paste(paste0("^", x, c("$", "___")), collapse = "|")
@@ -169,7 +177,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
     if(label != FALSE) {
       labs <- sapply(names(data), function(x) {
-        object$dd$Field.Label[object$dd[[1]] %in% gsub("___[0-9]+$","",x)]
+        object$dd$field_label[object$dd$field_name %in% gsub("___[0-9]+$","",x)]
       })
       labs[lengths(labs) == 0] <- NA_character_
 
@@ -242,7 +250,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
       if(label != FALSE) {
         labs <- sapply(names(data), function(x) {
-          object$dd$Field.Label[object$dd[[1]] %in% gsub("___[0-9]+$","",x)]
+          object$dd$field_label[object$dd$field_name %in% gsub("___[0-9]+$","",x)]
         })
         labs[lengths(labs) == 0] <- NA_character_
 
