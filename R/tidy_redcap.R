@@ -139,15 +139,10 @@ rc_read_api <- function(url, token, yesno = "factor") {
     if(yesno == "numeric")
       object$rcrd[, cols_yn] <- lapply(object$rcrd[, cols_yn], redcapAPI::redcapFactorFlip)
 
-    ## To logical (FALSE or TRUE)
+    ## To logical
     else if(yesno == "logical")
       object$rcrd[, cols_yn] <- lapply(
-<<<<<<< HEAD
         object$rcrd[, cols_yn], function(x) as.logical(redcapAPI::redcapFactorFlip(x)))
-=======
-        object$rcrd[, cols_yn], function(x) is.logical(redcapAPI::redcapFactorFlip(x)))
->>>>>>> 261654035fd86fed56d55ccc0aa8e8bdb447f0e6
-
   }
 
   return(object)
