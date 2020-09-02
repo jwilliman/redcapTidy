@@ -46,18 +46,66 @@ rc_read_csv <- function(folder) {
     "required_field", "custom_alignment", "question_number",
     "matrix_group_name", "matrix_ranking", "field_annotation")
 
+
+  # Format and clean variables ---------------------------------------------------------
+  ## Character fields (replace blanks with NA)
+  cols_chr <- names(object$rcrd)[sapply(object$rcrd, is.character)]
+  for (x in cols_chr)
+    object$rcrd[, x][object$rcrd[, x] == ""] <- NA
+
+
+  ## Dates and date-time variables
+  cols_dt <- object$dd$field_name[grepl("date_", object$dd$text_validation_type_or_show_slider_number)]
+  object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.Date, format = "%Y-%m-%d")
+
+  cols_dttm <- c(
+    object$dd$field_name[grepl("datetime_", object$dd$text_validation_type_or_show_slider_number)],
+    grep("timestamp", names(object$rcrd), value = TRUE))
+  object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
+
+
+  ## Logical (checkboxs)
+  cols_lg <- c(
+    object$dd$field_name[object$dd$field_type == "yesno" |
+                           object$dd$select_choices_or_calculations %in% c(
+                             "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
+    unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
+      grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
+  object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], as.logical)
+
+
+  ## Factors (radio)
+  cols_fct <- object$dd$field_name[object$dd$field_type %in% c("radio", "dropdown") & !(object$dd$field_name %in% cols_lg)]
+
+  fct_label <- function(x) {
+    ## Replace first ',' with '|' before repeating split.
+    lbls <- sapply(strsplit(sub(",", "|", strsplit(
+      object$dd$select_choices_or_calculations[object$dd$field_name == x],
+      split = "\\|")[[1]]), "\\|"), trimws)
+    factor(object$rcrd[, x], levels = lbls[1, ], labels = lbls[2, ])
+  }
+
+  object$rcrd[, cols_fct] <- lapply(cols_fct, fct_label)
+
+
+  ## Return object
   return(object)
 
 }
 
 
 
-#' Title
+#' Read in record and metadata from REDCap using redcapAPI
 #'
-#' @param url URL for a REDCap database API. Check your institution's REDCap documentation for this address.
+#' A wrapper for importing data Records, data dictionary, events, and instrument
+#' designation mappings from REDCap. Uses the redcapAPI package.
+#'
+#' @param url URL for a REDCap database API. Check your institution's REDCap
+#'   documentation for this address.
 #' @param token REDCap API token
 #'
-#' @return A named list containing four dataframes: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
+#' @return A named list containing four dataframes: dd = metadata, evnt =
+#'   Events, inst = Instrument mappings, rcrd = Records.
 #' @export
 #'
 #' @examples
@@ -84,8 +132,6 @@ rc_read_api <- function(url, token) {
 
 #' Tidy list of datasets from REDCap.
 #'
-#' Clean raw .csv data exported from a REDCap database, and export a list of
-#' data.frames
 #'
 #' @param object An named list containing the following data.frames; metadata (dd),
 #' events (evnt), instruments (inst) and records (rcrd).
@@ -96,7 +142,7 @@ rc_read_api <- function(url, token) {
 #'   event. Options are: exclude, include, or nest. Nest uses `tidyr` package to
 #'   collapse by row id.
 #'
-#' @return
+#' @return A list of dataframes, with variables grouped by event or by data collection form.
 #' @export
 #'
 #' @examples
@@ -106,48 +152,8 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
     ids <- names(object$rcrd)[[1]]
   ids_rc <- c(ids, grep("^redcap", names(object$rcrd), value = TRUE, ignore.case = TRUE))
 
-  # 5 Format and clean variables ---------------------------------------------------------
-  ## Character fields (replace blanks with NA)
-  cols_chr <- names(object$rcrd)[sapply(object$rcrd, is.character)]
-  for (x in cols_chr)
-    object$rcrd[, x][object$rcrd[, x] == ""] <- NA
 
-
-  ## Dates and date-time variables
-  cols_dt <- object$dd$field_name[grepl("date_", object$dd$text_validation_type_or_show_slider_number)]
-  object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.Date, format = "%Y-%m-%d")
-
-  cols_dttm <- c(
-    object$dd$field_name[grepl("datetime_", object$dd$text_validation_type_or_show_slider_number)],
-    grep("timestamp", names(object$rcrd), value = TRUE))
-  object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
-
-
-  ## Logical (checkboxs)
-  cols_lg <- c(
-    object$dd$field_name[object$dd$field_type == "yesno" |
-                     object$dd$select_choices_or_calculations %in% c(
-                       "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
-    unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
-      grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
-  object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], as.logical)
-
-
-  ## Factors (radio)
-  cols_fct <- object$dd$field_name[object$dd$field_type %in% c("radio", "dropdown") & !(object$dd$field_name %in% cols_lg)]
-
-  fct_label <- function(x) {
-    ## Replace first ',' with '|' before repeating split.
-    lbls <- sapply(strsplit(sub(",", "|", strsplit(
-      object$dd$select_choices_or_calculations[object$dd$field_name == x],
-      split = "\\|")[[1]]), "\\|"), trimws)
-    factor(object$rcrd[, x], levels = lbls[1, ], labels = lbls[2, ])
-  }
-
-  object$rcrd[, cols_fct] <- lapply(cols_fct, fct_label)
-
-
-  # 6 Create list of datasets ---------------------------------------------------
+  # Create list of datasets ---------------------------------------------------
   dat_ed <- vector("list", 2)
   names(dat_ed) <- c("form", "event")
 
@@ -167,7 +173,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
   object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
     factor(x, levels = c(0,1,2), labels = c("Incomplete", "Unverified", "Complete")))
 
-    ## Create list with name, columns, events, and repeating status by form
+  ## Create list with name, columns, events, and repeating status by form
   form_data <- sapply(forms, function(form) {
 
     vars  <- object$dd$field_name[object$dd$form_name %in% form]
@@ -299,6 +305,6 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   }
 
-    return(dat_ed)
+  return(dat_ed)
 
-  }
+}

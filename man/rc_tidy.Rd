@@ -20,9 +20,8 @@ event. Options are: exclude, include, or nest. Nest uses `tidyr` package to
 collapse by row id.}
 }
 \value{
-
+A list of dataframes, with variables grouped by event or by data collection form.
 }
 \description{
-Clean raw .csv data exported from a REDCap database, and export a list of
-data.frames
+Tidy list of datasets from REDCap.
 }
