@@ -103,13 +103,14 @@ rc_read_csv <- function(folder) {
 #' @param url URL for a REDCap database API. Check your institution's REDCap
 #'   documentation for this address.
 #' @param token REDCap API token
+#' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
 #'
 #' @return A named list containing four dataframes: dd = metadata, evnt =
 #'   Events, inst = Instrument mappings, rcrd = Records.
 #' @export
 #'
 #' @examples
-rc_read_api <- function(url, token) {
+rc_read_api <- function(url, token, yesno = "factor") {
 
   rcon <- redcapAPI::redcapConnection(url=url, token=token)
 
@@ -123,6 +124,27 @@ rc_read_api <- function(url, token) {
     rcrd = redcapAPI::exportRecords(rcon)
 
   )
+
+  ## Convert YesNo fields
+  if(yesno != "factor") {
+
+    cols_yn <- c(
+      object$dd$field_name[object$dd$field_type == "yesno" |
+                             object$dd$select_choices_or_calculations %in% c(
+                               "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
+      unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
+        grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
+
+    ## To numeric (0 or 1)
+    if(yesno == "numeric")
+      object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], redcapAPI::redcapFactorFlip)
+
+    ## To logical
+    else if(yesno == "logical")
+      object$rcrd[, cols_lg] <- lapply(
+        object$rcrd[, cols_lg], function(x) is.logical(redcapAPI::redcapFactorFlip(x)))
+
+  }
 
   return(object)
 
