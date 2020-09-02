@@ -7,6 +7,9 @@
 rc_tidy(object, ids = NULL, label = FALSE, repeated = "exclude")
 }
 \arguments{
+\item{object}{An named list containing the following data.frames; metadata (dd),
+events (evnt), instruments (inst) and records (rcrd).}
+
 \item{ids}{Names of identifiers, for inclusion on all output datasets.}
 
 \item{label}{Add labels to variables. Supply name of labelling package,
@@ -15,12 +18,6 @@ rc_tidy(object, ids = NULL, label = FALSE, repeated = "exclude")
 \item{repeated}{How shall repeated forms be treated in datasets assembled by
 event. Options are: exclude, include, or nest. Nest uses `tidyr` package to
 collapse by row id.}
-
-\item{folder}{The folder containing the files downloaded from the REDCap
-database. The four files required include the Data Dictionary, Events
-(under the 'Define my events' tab), Instrument Mappings (under the
-'Designate Instruments for My Events' tab), and the raw Record data (under
-the 'My Reports & Exports' tab). All files should be saved as .csv.}
 }
 \value{
 

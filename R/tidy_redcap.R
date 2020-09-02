@@ -9,7 +9,7 @@
 #'   the 'My Reports & Exports' tab). All files should be saved as .csv.
 #' @param ids Names of identifiers, for inclusion on all output datasets.
 #'
-#' @return
+#' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 #' @export
 #'
 #' @examples
@@ -37,6 +37,7 @@ rc_read_csv <- function(folder) {
   object <- lapply(file.path(folder, Inputs), read.csv, stringsAsFactors = FALSE)
   names(object) <- names(Inputs)
 
+  ## Tidy data dictionary names
   names(object$dd) <-  c(
     "field_name", "form_name", "section_header", "field_type", "field_label",
     "select_choices_or_calculations", "field_note",
@@ -49,16 +50,45 @@ rc_read_csv <- function(folder) {
 
 }
 
+
+
+#' Title
+#'
+#' @param url URL for a REDCap database API. Check your institution's REDCap documentation for this address.
+#' @param token REDCap API token
+#'
+#' @return A named list containing four dataframes: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
+#' @export
+#'
+#' @examples
+rc_read_api <- function(url, token) {
+
+  rcon <- redcapAPI::redcapConnection(url=url, token=token)
+
+  #redcapAPI::exportBundle(rcon)
+
+  object <- list(
+
+    dd   = redcapAPI::exportMetaData(rcon),
+    evnt = redcapAPI::exportEvents(rcon),
+    inst = redcapAPI::exportMappings(rcon),
+    rcrd = redcapAPI::exportRecords(rcon)
+
+  )
+
+  return(object)
+
+}
+
+
+
 #' Tidy list of datasets from REDCap.
 #'
 #' Clean raw .csv data exported from a REDCap database, and export a list of
 #' data.frames
 #'
-#' @param folder The folder containing the files downloaded from the REDCap
-#'   database. The four files required include the Data Dictionary, Events
-#'   (under the 'Define my events' tab), Instrument Mappings (under the
-#'   'Designate Instruments for My Events' tab), and the raw Record data (under
-#'   the 'My Reports & Exports' tab). All files should be saved as .csv.
+#' @param object An named list containing the following data.frames; metadata (dd),
+#' events (evnt), instruments (inst) and records (rcrd).
 #' @param ids Names of identifiers, for inclusion on all output datasets.
 #' @param label Add labels to variables. Supply name of labelling package,
 #'   \code{Hmisc} or \code{sjlabelled}.

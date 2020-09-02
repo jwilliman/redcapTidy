@@ -16,7 +16,7 @@ the 'My Reports & Exports' tab). All files should be saved as .csv.}
 \item{ids}{Names of identifiers, for inclusion on all output datasets.}
 }
 \value{
-
+A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 }
 \description{
 Clean raw .csv data exported from a REDCap database, and export a list of data.frames
