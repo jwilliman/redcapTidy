@@ -232,6 +232,21 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
     if("redcap_event_name" %in% names(object$rcrd))
       data <- data[data$redcap_event_name %in% form$events,]
 
+    ## Add in days offset column for each event
+    col_rc_evnt <- grep("redcap_event_name", names(data))
+
+    redcap_event_day_offset <- as.numeric(as.character(
+      factor(
+        data$redcap_event_name, levels = object$evnt$unique_event_name,
+        labels = object$evnt$day_offset)
+    ))
+
+    data <- cbind(
+      data[, 1:col_rc_evnt],
+      redcap_event_day_offset,
+      data[, (col_rc_evnt + 1):ncol(data)])
+
+    ## Add labels if requested
     if(label != FALSE) {
       labs <- sapply(names(data), function(x) {
         object$dd$field_label[object$dd$field_name %in% gsub("___[0-9]+$","",x)]
@@ -300,20 +315,6 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
           data <- Reduce(function(...) merge(..., all = TRUE, by = ids, sort = FALSE)
                          , c(norpt = list(data), dats_rpt))
-
-          ## Add in days offset column for each event
-          col_rc_evnt <- grep("redcap_event_name", names(data))
-
-          redcap_event_day_offset <- as.numeric(as.character(
-            factor(
-              data$redcap_event_name, levels = object$evnt$unique_event_name,
-              labels = object$evnt$day_offset)
-          ))
-
-          data <- cbind(
-            data[, 1:col_rc_evnt],
-            redcap_event_day_offset,
-            data[, (col_rc_evnt + 1):ncol(data)])
 
         }
 
