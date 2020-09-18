@@ -271,7 +271,8 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
   ## Create list of datasets by event name --------------------------------------
   if("evnt" %in% names(object)) {
 
-    events <- object$evnt$unique_event_name
+    # events <- object$evnt$unique_event_name Not all defined events have instuments attached to them.
+    events <- unique(object$inst$unique_event_name)
 
     dat_ed$event <- sapply(events, function(event) {
 
