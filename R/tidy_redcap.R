@@ -55,12 +55,16 @@ rc_read_csv <- function(folder) {
 
 
   ## Dates and date-time variables
-  cols_dt <- object$dd$field_name[grepl("date_", object$dd$text_validation_type_or_show_slider_number)]
+  cols_dt <- object$dd$field_name[
+    grepl("date_", object$dd$text_validation_type_or_show_slider_number)]
+
+  object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.character) # Correct empty date fields
   object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.Date, format = "%Y-%m-%d")
 
   cols_dttm <- c(
     object$dd$field_name[grepl("datetime_", object$dd$text_validation_type_or_show_slider_number)],
     grep("timestamp", names(object$rcrd), value = TRUE))
+  object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.character)
   object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
 
 
