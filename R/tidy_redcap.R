@@ -114,7 +114,7 @@ rc_read_csv <- function(folder) {
 #' @export
 #'
 #' @examples
-rc_read_api <- function(url, token, yesno = "factor") {
+rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 
   rcon <- redcapAPI::redcapConnection(url=url, token=token)
 
@@ -125,7 +125,7 @@ rc_read_api <- function(url, token, yesno = "factor") {
     dd   = redcapAPI::exportMetaData(rcon),
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
-    rcrd = redcapAPI::exportRecords(rcon)
+    rcrd = redcapAPI::exportRecords(rcon, label = label)
 
   )
 
