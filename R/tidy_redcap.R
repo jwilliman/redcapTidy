@@ -195,8 +195,17 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   ## Form completion
   cols_cmp <- paste0(forms, "_complete")
-  object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
-    factor(x, levels = c(0,1,2), labels = c("Incomplete", "Unverified", "Complete")))
+  if(all(sapply(object$rcrd[, cols_cmp], is.numeric))) {
+
+    object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
+      factor(x, levels = c("Incomplete", "Unverified", "Complete")))
+
+  } else {
+
+    object$rcrd[, cols_cmp] <- lapply(
+      object$rcrd[, cols_cmp], factor, levels = c("Incomplete", "Unverified", "Complete"))
+
+  }
 
   ## Create list with name, columns, events, and repeating status by form
   form_data <- sapply(forms, function(form) {
