@@ -132,12 +132,12 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
   ## Convert YesNo fields
   if(yesno != "factor") {
 
-    cols_yn <- c(
+    cols_yn <- unique(c(
       object$dd$field_name[object$dd$field_type == "yesno" |
                              object$dd$select_choices_or_calculations %in% c(
                                "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
       unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
-        grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
+        grep(paste0(x, "___"), names(object$rcrd), value = TRUE)))))
 
     ## To numeric (0 or 1)
     if(yesno == "numeric")
