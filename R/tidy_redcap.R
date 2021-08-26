@@ -207,6 +207,9 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
   }
 
+  cols_tmstmp <- intersect(paste0(forms, "_timestamp"), names(object$rcrd))
+  object$rcrd[, cols_tmstmp] <- lapply(object$rcrd[, cols_tmstmp], as.POSIXct)
+
   ## Create list with name, columns, events, and repeating status by form
   form_data <- sapply(forms, function(form) {
 
