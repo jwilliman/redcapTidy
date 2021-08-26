@@ -216,7 +216,9 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
         paste(paste0("^", x, c("$", "___")), collapse = "|")
         , names(object$rcrd), value = TRUE
       )))
-    cols  <- c(cols, paste0(form, "_complete"))
+    ## Add form timestamp and complete columns. Ensure names are in dataset
+    cols <- c(cols, paste(form, c("timestamp", "complete"), sep = "_"))
+    cols <- intersect(cols, names(object$rcrd))
 
     if("evnt" %in% names(object))
       events <- object$inst$unique_event_name[object$inst$form == form]
