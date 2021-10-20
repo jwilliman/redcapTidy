@@ -173,6 +173,7 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 #' @examples
 rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
+  ## If ID columns not specified take first column and any beginning with 'redcap'.
   if(is.null(ids))
     ids <- names(object$rcrd)[[1]]
   ids_rc <- c(ids, grep("^redcap", names(object$rcrd), value = TRUE, ignore.case = TRUE))
@@ -194,7 +195,13 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
     repeated = "exclude"
 
   ## Form completion
-  cols_cmp <- paste0(forms, "_complete")
+  cols_cmp <- intersect(
+    ## All possible form names
+    paste0(forms, "_complete"),
+    ## Forms actually used
+    grep("_complete$", names(object$rcrd), value = TRUE))
+
+
   if(all(sapply(object$rcrd[, cols_cmp], is.numeric))) {
 
     object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
