@@ -120,6 +120,7 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 
   #redcapAPI::exportBundle(rcon)
 
+  ## Read in data dictionary, event and instrument tables, and raw data from REDCap
   object <- list(
 
     dd   = redcapAPI::exportMetaData(rcon),
@@ -127,6 +128,31 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
     inst = redcapAPI::exportMappings(rcon),
     rcrd = redcapAPI::exportRecords(rcon, label = label)
 
+  )
+
+  ## If not a longitudinal project
+
+  ### Create single event
+  object$event <- data.frame(
+    event_name = "All instruments",
+    arm_num    = 1,
+    day_offset = 0, offset_min = 0, offset_max = 0,
+    unique_event_name = "all_instruments_arm_1",
+    custom_event_label = "all_instruments"
+  )
+
+  ### Allocate all forms to single event
+  object$inst = data.frame(
+    arm_num = 1,
+    unique_event_name = "all_instruments_arm_1",
+    form = unique(object$dd$form_name)
+  )
+
+  ### Add event name as second column in record data.frame
+  object$rcrd <- cbind(
+    object$rcrd[,1],
+    redcap_event_name = "all_instruments_arm_1",
+    object$rcrd[,-1]
   )
 
   ## Convert YesNo fields
