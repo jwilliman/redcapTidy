@@ -199,9 +199,9 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
     ### Add event name as second column in record data.frame
     object$rcrd <- cbind(
-      object$rcrd[,1],
+      object$rcrd[, 1, drop = FALSE],
       redcap_event_name = "all_instruments_arm_1",
-      object$rcrd[,-1]
+      object$rcrd[,-1, drop = FALSE]
     )
 
   }
