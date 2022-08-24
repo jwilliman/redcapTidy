@@ -130,31 +130,6 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 
   )
 
-  ## If not a longitudinal project
-
-  ### Create single event
-  object$event <- data.frame(
-    event_name = "All instruments",
-    arm_num    = 1,
-    day_offset = 0, offset_min = 0, offset_max = 0,
-    unique_event_name = "all_instruments_arm_1",
-    custom_event_label = "all_instruments"
-  )
-
-  ### Allocate all forms to single event
-  object$inst = data.frame(
-    arm_num = 1,
-    unique_event_name = "all_instruments_arm_1",
-    form = unique(object$dd$form_name)
-  )
-
-  ### Add event name as second column in record data.frame
-  object$rcrd <- cbind(
-    object$rcrd[,1],
-    redcap_event_name = "all_instruments_arm_1",
-    object$rcrd[,-1]
-  )
-
   ## Convert YesNo fields
   if(yesno != "factor") {
 
@@ -199,17 +174,49 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 #' @examples
 rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
+  ## If not a longitudinal project, create single event containing all forms
+  if(
+    (is.null(object$evnt) | !"evnt" %in% names(object)) &
+    (is.null(object$inst) | !"inst" %in% names(object)) &
+    !"redcap_event_name" %in% names(object$rcrd)
+  ) {
+
+    ### Create single event
+    object$evnt <- data.frame(
+      event_name = "All instruments",
+      arm_num    = 1,
+      day_offset = 0, offset_min = 0, offset_max = 0,
+      unique_event_name = "all_instruments_arm_1",
+      custom_event_label = "all_instruments"
+    )
+
+    ### Allocate all forms to single event
+    object$inst = data.frame(
+      arm_num = 1,
+      unique_event_name = "all_instruments_arm_1",
+      form = unique(object$dd$form_name)
+    )
+
+    ### Add event name as second column in record data.frame
+    object$rcrd <- cbind(
+      object$rcrd[,1],
+      redcap_event_name = "all_instruments_arm_1",
+      object$rcrd[,-1]
+    )
+
+  }
+
+
   ## If ID columns not specified take first column and any beginning with 'redcap'.
   if(is.null(ids))
     ids <- names(object$rcrd)[[1]]
   ids_rc <- c(ids, grep("^redcap", names(object$rcrd), value = TRUE, ignore.case = TRUE))
 
-
-  # Create list of datasets ---------------------------------------------------
+  # Create list of datasets ----------------------------------------------------
   dat_ed <- vector("list", 2)
   names(dat_ed) <- c("form", "event")
 
-  ## By form (data collection instrument)
+  ## By form (data collection instrument) --------------------------------------
   ### All forms
   forms <- unique(object$dd$form_name)
   ### Repeating forms
@@ -326,7 +333,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
 
 
-  ## Create list of datasets by event name --------------------------------------
+  ## Create list of datasets by event name -------------------------------------
   if("evnt" %in% names(object)) {
 
     # events <- object$evnt$unique_event_name Not all defined events have instuments attached to them.
