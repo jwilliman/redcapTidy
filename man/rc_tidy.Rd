@@ -4,7 +4,13 @@
 \alias{rc_tidy}
 \title{Tidy list of datasets from REDCap.}
 \usage{
-rc_tidy(object, ids = NULL, label = FALSE, repeated = "exclude")
+rc_tidy(
+  object,
+  ids = NULL,
+  label = FALSE,
+  label_checkbox = TRUE,
+  repeated = "exclude"
+)
 }
 \arguments{
 \item{object}{An named list containing the following data.frames; metadata (dd),
@@ -14,6 +20,11 @@ events (evnt), instruments (inst) and records (rcrd).}
 
 \item{label}{Add labels to variables. Supply name of labelling package,
 \code{Hmisc} or \code{sjlabelled}.}
+
+\item{label_checkbox}{If labels are applied, how should checkbox items be labelled?
+If set to \code{TRUE} then choice labels are returned, if \code{FALSE} then the field label
+is returned for all items. If a character value is provided, the both the field label and choick label
+are return separated by the character value.}
 
 \item{repeated}{How shall repeated forms be treated in datasets assembled by
 event. Options are: exclude, include, or nest. Nest uses `tidyr` package to

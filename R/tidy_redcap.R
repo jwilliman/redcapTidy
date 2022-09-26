@@ -10,6 +10,7 @@
 #' @param ids Names of identifiers, for inclusion on all output datasets.
 #'
 #' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
+#' @importFrom utils read.csv
 #' @export
 #'
 #' @examples
@@ -34,7 +35,7 @@ rc_read_csv <- function(folder) {
   Inputs <- Inputs[!sapply(Inputs, is.na)]
 
   ## Import data
-  object <- lapply(file.path(folder, Inputs), read.csv, stringsAsFactors = FALSE)
+  object <- lapply(file.path(folder, Inputs), utils::read.csv, stringsAsFactors = FALSE)
   names(object) <- names(Inputs)
 
   ## Tidy data dictionary names
@@ -111,6 +112,7 @@ rc_read_csv <- function(folder) {
 #'
 #' @return A named list containing four dataframes: dd = metadata, evnt =
 #'   Events, inst = Instrument mappings, rcrd = Records.
+#' @importFrom redcapAPI exportMetaData exportEvents exportMappings exportRecords redcapFactorFlip
 #' @export
 #'
 #' @examples
@@ -164,15 +166,24 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 #' @param ids Names of identifiers, for inclusion on all output datasets.
 #' @param label Add labels to variables. Supply name of labelling package,
 #'   \code{Hmisc} or \code{sjlabelled}.
+#' @param label_checkbox If labels are applied, how should checkbox items be labelled?
+#' If set to \code{TRUE} then choice labels are returned, if \code{FALSE} then the field label
+#' is returned for all items. If a character value is provided, the both the field label and choick label
+#' are return separated by the character value.
 #' @param repeated How shall repeated forms be treated in datasets assembled by
 #'   event. Options are: exclude, include, or nest. Nest uses `tidyr` package to
 #'   collapse by row id.
 #'
 #' @return A list of dataframes, with variables grouped by event or by data collection form.
+#' @importFrom stats setNames na.omit
+#' @importFrom Hmisc label
+#' @importFrom sjlabelled set_label
+#' @importFrom labelled var_label
+#' @importFrom tidyr nest
 #' @export
 #'
 #' @examples
-rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
+rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, repeated = "exclude") {
 
   ## If not a longitudinal project, create single event containing all forms
   if(
@@ -313,13 +324,43 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
 
     ## Add labels if requested
     if(label != FALSE) {
+
       labs <- sapply(names(data), function(x) {
-        object$dd$field_label[object$dd$field_name %in% gsub("___[0-9]+$","",x)]
-      })
-      labs[lengths(labs) == 0] <- NA_character_
+
+        ## Find original name of checkboxes
+        x_ = gsub("___[0-9]+$", "", x)
+
+        if(x_ %in% object$dd$field_name) {
+
+          x_dd <- object$dd[object$dd$field_name %in% x_,]
+
+          ## Labelling options for checkboxes.
+          if(!is.null(x_dd) & x_dd$field_type %in% "checkbox") {
+
+            cb_opts <- trimws(strsplit(x_dd$select_choices_or_calculations, "|", fixed = TRUE)[[1]])
+            cb_codes <- sapply(
+              strsplit(cb_opts, ", ", fixed = TRUE), function(x)
+                setNames(x[[2]], x[[1]]))
+            cb_label <- cb_codes[sub(".*___([0-9]+)$", "\\1", x)]
+
+            ## Combine checkbox field label and choice value
+            if(is.character(label_checkbox))
+              return(paste(x_dd$field_label, sep = label_checkbox, cb_label))
+            ## Just return choice value
+            else if(is.logical(label_checkbox) & label_checkbox)
+              return(unname(cb_label))
+            ## Just return field labbel
+            else
+              return(x_dd$field_label)
+          } else {
+            return(object$dd$field_label[object$dd$field_name %in% x])
+          }} else {
+
+            return(NA_character_)
+          }})
 
       if(label == "Hmisc") {
-        Hmisc::label(data[!is.na(unlist(labs))], self = FALSE) <- na.omit(unlist(labs))
+        Hmisc::label(data[!is.na(unlist(labs))], self = FALSE) <- stats::na.omit(unlist(labs))
       } else if(grepl("^sj", label)) {
         data <- sjlabelled::set_label(data, label = unlist(labs))
       } else if(label == "labelled") {
@@ -387,13 +428,43 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, repeated = "exclude") {
       }
 
       if(label != FALSE) {
+
         labs <- sapply(names(data), function(x) {
-          object$dd$field_label[object$dd$field_name %in% gsub("___[0-9]+$","",x)]
-        })
-        labs[lengths(labs) == 0] <- NA_character_
+
+          ## Find original name of checkboxes
+          x_ = gsub("___[0-9]+$", "", x)
+
+          if(x_ %in% object$dd$field_name) {
+
+            x_dd <- object$dd[object$dd$field_name %in% x_,]
+
+            ## Labelling options for checkboxes.
+            if(!is.null(x_dd) & x_dd$field_type %in% "checkbox") {
+
+              cb_opts <- trimws(strsplit(x_dd$select_choices_or_calculations, "|", fixed = TRUE)[[1]])
+              cb_codes <- sapply(
+                strsplit(cb_opts, ", ", fixed = TRUE), function(x)
+                  setNames(x[[2]], x[[1]]))
+              cb_label <- cb_codes[sub(".*___([0-9]+)$", "\\1", x)]
+
+              ## Combine checkbox field label and choice value
+              if(is.character(label_checkbox))
+                return(paste(x_dd$field_label, sep = label_checkbox, cb_label))
+              ## Just return choice value
+              else if(is.logical(label_checkbox) & label_checkbox)
+                return(unname(cb_label))
+              ## Just return field labbel
+              else
+                return(x_dd$field_label)
+            } else {
+              return(object$dd$field_label[object$dd$field_name %in% x])
+            }} else {
+
+              return(NA_character_)
+            }})
 
         if(label == "Hmisc") {
-          Hmisc::label(data[!is.na(unlist(labs))], self = FALSE) <- na.omit(unlist(labs))
+          Hmisc::label(data[!is.na(unlist(labs))], self = FALSE) <- stats::na.omit(unlist(labs))
         } else if(grepl("^sj", label)) {
           data <- sjlabelled::set_label(data, label = unlist(labs))
         } else if(label == "labelled") {
