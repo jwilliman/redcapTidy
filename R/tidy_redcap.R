@@ -165,6 +165,7 @@ rc_read_csv <- function(folder, yesno = "logical") {
 #'   documentation for this address.
 #' @param token REDCap API token
 #' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
+#' @param labels Passed to `redcapAPI::exportRecords`, determines if the variable labels are applied to the data frame. `FALSE` by default.
 #'
 #' @return A named list containing four dataframes: dd = metadata, evnt =
 #'   Events, inst = Instrument mappings, rcrd = Records.
@@ -172,7 +173,7 @@ rc_read_csv <- function(folder, yesno = "logical") {
 #' @export
 #'
 
-rc_read_api <- function(url, token, yesno = "logical") {
+rc_read_api <- function(url, token, yesno = "logical", labels = labels) {
 
   rcon <- redcapAPI::redcapConnection(url=url, token=token)
   #redcapAPI::exportBundle(rcon)
@@ -183,7 +184,7 @@ rc_read_api <- function(url, token, yesno = "logical") {
     dd   = redcapAPI::exportMetaData(rcon),
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
-    rcrd = redcapAPI::exportRecords(rcon, label = label)
+    rcrd = redcapAPI::exportRecords(rcon, labels = labels)
 
   )
 
