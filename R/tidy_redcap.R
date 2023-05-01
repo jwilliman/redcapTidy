@@ -1,3 +1,102 @@
+
+#' Clean variable types of raw data export
+#'
+#' @param data Data exported from REDCap via csv or API call.
+#' @param dictionary Data dictionary exported from REDCap via csv or API call.
+#' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
+#'
+#' @return The REDCap dataset with variable types cleaned.
+#' @importFrom redcapAPI redcapFactorFlip
+#' @export
+#'
+
+rc_format_variables <- function(data, dictionary, yesno = "logical") {
+
+  ## Tidy data dictionary names
+  dictionary_tidy_names <-  c(
+    "field_name", "form_name", "section_header", "field_type", "field_label",
+    "select_choices_or_calculations", "field_note",
+    "text_validation_type_or_show_slider_number", "text_validation_min",
+    "text_validation_max", "identifier", "branching_logic",
+    "required_field", "custom_alignment", "question_number",
+    "matrix_group_name", "matrix_ranking", "field_annotation")
+
+  if(!identical(names(dictionary), dictionary_tidy_names))
+    names(dictionary) <- dictionary_tidy_names
+
+## Character fields (replace blanks with NA)
+  cols_chr <- names(data)[sapply(data, is.character)]
+  for (x in cols_chr)
+    data[, x][data[, x] == ""] <- NA
+
+
+## Dates and date-time variables to Dates or POSIXct variables
+  cols_dt <- dictionary$field_name[
+    grepl("date_", dictionary$text_validation_type_or_show_slider_number)]
+
+  data[, cols_dt] <- lapply(data[, cols_dt], as.character) # Correct empty date fields
+  data[, cols_dt] <- lapply(data[, cols_dt], as.Date, format = "%Y-%m-%d")
+
+  cols_dttm <- c(
+    dictionary$field_name[grepl("datetime_", dictionary$text_validation_type_or_show_slider_number)],
+    grep("timestamp", names(data), value = TRUE))
+  data[, cols_dttm] <- lapply(data[, cols_dttm], as.character)
+  data[, cols_dttm] <- lapply(data[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
+
+
+  ## Logical variables (yesno radios and checkboxs)
+  if(yesno != "factor") {
+
+    cols_yn <- intersect(
+      ## Ensure returned names are in the extracted dataset
+      names(data),
+
+      unique(c(
+        ## Retrieve names of all binary fields coded as 0, 1
+        dictionary$field_name[
+          dictionary$field_type == "yesno" |
+            dictionary$select_choices_or_calculations %in% c(
+              "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
+
+        ## Retrieve/create names of all checkbox fields
+        unlist(sapply(dictionary$field_name[dictionary$field_type == "checkbox"], function(x)
+          grep(paste0(x, "___"), names(data), value = TRUE)))))
+
+    )
+
+
+    ## To numeric (0 or 1)
+    if(yesno == "numeric")
+      data[, cols_yn] <- lapply(data[, cols_yn], redcapAPI::redcapFactorFlip)
+
+    ## To logical
+    else if(yesno == "logical")
+      data[, cols_yn] <- lapply(
+        data[, cols_yn], function(x) as.logical(redcapAPI::redcapFactorFlip(x)))
+
+  }
+
+  ## Factors (radio)
+  cols_fct <- dictionary$field_name[
+    dictionary$field_type %in% c("radio", "dropdown") & !(dictionary$field_name %in% cols_yn)]
+
+  fct_label <- function(x) {
+    ## Replace first ',' with '|' before repeating split.
+    lbls <- sapply(strsplit(sub(",", "|", strsplit(
+      dictionary$select_choices_or_calculations[dictionary$field_name == x],
+      split = "\\|")[[1]]), "\\|"), trimws)
+    factor(data[, x], levels = lbls[1, ], labels = lbls[2, ])
+  }
+
+  data[, cols_fct] <- lapply(cols_fct, fct_label)
+
+  return(data)
+
+}
+
+
+
+
 #' Imported REDCap csv files and combine into single list.
 #'
 #' Clean raw .csv data exported from a REDCap database, and export a list of data.frames
@@ -7,14 +106,14 @@
 #'   (under the 'Define my events' tab), Instrument Mappings (under the
 #'   'Designate Instruments for My Events' tab), and the raw Record data (under
 #'   the 'My Reports & Exports' tab). All files should be saved as .csv.
-#' @param ids Names of identifiers, for inclusion on all output datasets.
+#' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
 #'
 #' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 #' @importFrom utils read.csv
 #' @export
 #'
-#' @examples
-rc_read_csv <- function(folder) {
+
+rc_read_csv <- function(folder, yesno = "logical") {
 
 
   ## Collect names of input data files ----------------------------------------
@@ -47,51 +146,8 @@ rc_read_csv <- function(folder) {
     "required_field", "custom_alignment", "question_number",
     "matrix_group_name", "matrix_ranking", "field_annotation")
 
-
-  # Format and clean variables ---------------------------------------------------------
-  ## Character fields (replace blanks with NA)
-  cols_chr <- names(object$rcrd)[sapply(object$rcrd, is.character)]
-  for (x in cols_chr)
-    object$rcrd[, x][object$rcrd[, x] == ""] <- NA
-
-
-  ## Dates and date-time variables
-  cols_dt <- object$dd$field_name[
-    grepl("date_", object$dd$text_validation_type_or_show_slider_number)]
-
-  object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.character) # Correct empty date fields
-  object$rcrd[, cols_dt] <- lapply(object$rcrd[, cols_dt], as.Date, format = "%Y-%m-%d")
-
-  cols_dttm <- c(
-    object$dd$field_name[grepl("datetime_", object$dd$text_validation_type_or_show_slider_number)],
-    grep("timestamp", names(object$rcrd), value = TRUE))
-  object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.character)
-  object$rcrd[, cols_dttm] <- lapply(object$rcrd[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
-
-
-  ## Logical (checkboxs)
-  cols_lg <- c(
-    object$dd$field_name[object$dd$field_type == "yesno" |
-                           object$dd$select_choices_or_calculations %in% c(
-                             "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
-    unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
-      grep(paste0(x, "___"), names(object$rcrd), value = TRUE))))
-  object$rcrd[, cols_lg] <- lapply(object$rcrd[, cols_lg], as.logical)
-
-
-  ## Factors (radio)
-  cols_fct <- object$dd$field_name[object$dd$field_type %in% c("radio", "dropdown") & !(object$dd$field_name %in% cols_lg)]
-
-  fct_label <- function(x) {
-    ## Replace first ',' with '|' before repeating split.
-    lbls <- sapply(strsplit(sub(",", "|", strsplit(
-      object$dd$select_choices_or_calculations[object$dd$field_name == x],
-      split = "\\|")[[1]]), "\\|"), trimws)
-    factor(object$rcrd[, x], levels = lbls[1, ], labels = lbls[2, ])
-  }
-
-  object$rcrd[, cols_fct] <- lapply(cols_fct, fct_label)
-
+  ## Tidy formatting of variables in dataset
+  object$rcrd <- rc_format_variables(data = object$rcrd, dictionary = object$dd, yesno = yesno)
 
   ## Return object
   return(object)
@@ -112,14 +168,13 @@ rc_read_csv <- function(folder) {
 #'
 #' @return A named list containing four dataframes: dd = metadata, evnt =
 #'   Events, inst = Instrument mappings, rcrd = Records.
-#' @importFrom redcapAPI exportMetaData exportEvents exportMappings exportRecords redcapFactorFlip
+#' @importFrom redcapAPI redcapConnection exportMetaData exportEvents exportMappings exportRecords
 #' @export
 #'
-#' @examples
-rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
+
+rc_read_api <- function(url, token, yesno = "logical") {
 
   rcon <- redcapAPI::redcapConnection(url=url, token=token)
-
   #redcapAPI::exportBundle(rcon)
 
   ## Read in data dictionary, event and instrument tables, and raw data from REDCap
@@ -132,36 +187,8 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 
   )
 
-  ## Convert YesNo fields
-  if(yesno != "factor") {
-
-    cols_yn <- intersect(
-      ## Ensure returned names are in the extracted dataset
-      names(object$rcrd),
-
-      unique(c(
-        ## Retrieve names of all binary fields coded as 0, 1
-        object$dd$field_name[
-          object$dd$field_type == "yesno" |
-            object$dd$select_choices_or_calculations %in% c(
-              "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
-
-        ## Retrieve/create names of all checkbox fields
-        unlist(sapply(object$dd$field_name[object$dd$field_type == "checkbox"], function(x)
-          grep(paste0(x, "___"), names(object$rcrd), value = TRUE)))))
-
-    )
-
-
-    ## To numeric (0 or 1)
-    if(yesno == "numeric")
-      object$rcrd[, cols_yn] <- lapply(object$rcrd[, cols_yn], redcapAPI::redcapFactorFlip)
-
-    ## To logical
-    else if(yesno == "logical")
-      object$rcrd[, cols_yn] <- lapply(
-        object$rcrd[, cols_yn], function(x) as.logical(redcapAPI::redcapFactorFlip(x)))
-  }
+  ## Tidy formatting of variables in dataset
+  object$rcrd <- rc_format_variables(data = object$rcrd, dictionary = object$dd)
 
   return(object)
 
@@ -193,7 +220,7 @@ rc_read_api <- function(url, token, yesno = "factor", label = FALSE) {
 #' @importFrom tidyr nest
 #' @export
 #'
-#' @examples
+
 rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, repeated = "exclude") {
 
   ## If not a longitudinal project, create single event containing all forms

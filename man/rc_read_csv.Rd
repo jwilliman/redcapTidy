@@ -4,7 +4,7 @@
 \alias{rc_read_csv}
 \title{Imported REDCap csv files and combine into single list.}
 \usage{
-rc_read_csv(folder)
+rc_read_csv(folder, yesno = "logical")
 }
 \arguments{
 \item{folder}{The folder containing the files downloaded from the REDCap
@@ -13,7 +13,7 @@ database. The four files required include the Data Dictionary, Events
 'Designate Instruments for My Events' tab), and the raw Record data (under
 the 'My Reports & Exports' tab). All files should be saved as .csv.}
 
-\item{ids}{Names of identifiers, for inclusion on all output datasets.}
+\item{yesno}{Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.}
 }
 \value{
 A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.

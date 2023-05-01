@@ -4,7 +4,7 @@
 \alias{rc_read_api}
 \title{Read in record and metadata from REDCap using redcapAPI}
 \usage{
-rc_read_api(url, token, yesno = "factor", label = FALSE)
+rc_read_api(url, token, yesno = "logical")
 }
 \arguments{
 \item{url}{URL for a REDCap database API. Check your institution's REDCap

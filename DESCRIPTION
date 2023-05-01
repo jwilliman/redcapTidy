@@ -8,5 +8,5 @@ Description: A small collection of commands to quickly extracting all
 License: GNU3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
 Imports: redcapAPI, stats, sjlabelled, Hmisc, labelled, tidyr
