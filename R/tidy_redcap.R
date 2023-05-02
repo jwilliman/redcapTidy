@@ -77,8 +77,12 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
   }
 
   ## Factors (radio)
-  cols_fct <- dictionary$field_name[
-    dictionary$field_type %in% c("radio", "dropdown") & !(dictionary$field_name %in% cols_yn)]
+  cols_fct <- intersect(
+    dictionary$field_name[
+      dictionary$field_type %in% c("radio", "dropdown") & !(dictionary$field_name %in% cols_yn)],
+    # Check variable hasn't already been converted
+    names(data)[sapply(data, is.numeric)]
+  )
 
   fct_label <- function(x) {
     ## Replace first ',' with '|' before repeating split.
@@ -173,7 +177,7 @@ rc_read_csv <- function(folder, yesno = "logical") {
 #' @export
 #'
 
-rc_read_api <- function(url, token, yesno = "logical", labels = labels) {
+rc_read_api <- function(url, token, yesno = "logical", labels = FALSE) {
 
   rcon <- redcapAPI::redcapConnection(url=url, token=token)
   #redcapAPI::exportBundle(rcon)
@@ -184,7 +188,8 @@ rc_read_api <- function(url, token, yesno = "logical", labels = labels) {
     dd   = redcapAPI::exportMetaData(rcon),
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
-    rcrd = redcapAPI::exportRecords(rcon, labels = labels)
+    rcrd = redcapAPI::exportRecords(
+      rcon, factors = TRUE, labels = labels, dates = FALSE, dag = TRUE)
 
   )
 
