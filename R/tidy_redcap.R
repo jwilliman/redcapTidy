@@ -30,19 +30,21 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
     data[, x][data[, x] == ""] <- NA
 
 
-## Dates and date-time variables to Dates or POSIXct variables
+## Dates and date-time variables to Dates or POSIXct variables, correcting empty date fields
   cols_dt <- dictionary$field_name[
     grepl("date_", dictionary$text_validation_type_or_show_slider_number)]
 
-  data[, cols_dt] <- lapply(data[, cols_dt], as.character) # Correct empty date fields
-  data[, cols_dt] <- lapply(data[, cols_dt], as.Date, format = "%Y-%m-%d")
+  for(col in cols_dt) {
+    data[, col] <- as.character(data[, col]) |> as.Date(format = "%Y-%m-%d")
+  }
 
   cols_dttm <- c(
     dictionary$field_name[grepl("datetime_", dictionary$text_validation_type_or_show_slider_number)],
     grep("timestamp", names(data), value = TRUE))
-  data[, cols_dttm] <- lapply(data[, cols_dttm], as.character)
-  data[, cols_dttm] <- lapply(data[, cols_dttm], as.POSIXct, format = "%Y-%m-%d %H:%M")
 
+  for(col in cols_dttm) {
+    data[, col] <- as.character(data[, col]) |> as.POSIXct(format = "%Y-%m-%d %H:%M")
+  }
 
   ## Logical variables (yesno radios and checkboxs)
   if(yesno != "factor") {
@@ -56,7 +58,9 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
         dictionary$field_name[
           dictionary$field_type == "yesno" |
             dictionary$select_choices_or_calculations %in% c(
-              "0, Incorrect | 1, Correct", "0, No | 1, Yes", "1, True | 0, False")],
+              "0, Incorrect | 1, Correct", "1, Correct | 0, Incorrect",
+              "0, No | 1, Yes", "1, Yes | 0, No",
+              "1, True | 0, False", "0, False | 1, True")],
 
         ## Retrieve/create names of all checkbox fields
         unlist(sapply(dictionary$field_name[dictionary$field_type == "checkbox"], function(x)
@@ -189,7 +193,7 @@ rc_read_api <- function(url, token, yesno = "logical", labels = FALSE) {
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
     rcrd = redcapAPI::exportRecords(
-      rcon, factors = TRUE, labels = labels, dates = FALSE, dag = TRUE)
+      rcon, factors = TRUE, labels = labels, dates = FALSE, dag = TRUE, checkboxLabels = TRUE)
 
   )
 
