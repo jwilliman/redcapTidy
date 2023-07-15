@@ -308,9 +308,9 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
 
   ## Form timestamps
   cols_tmstmp <- intersect(paste0(forms, "_timestamp"), names(object$rcrd))
-  ### Drop timestamp values recorded as 'not completed'.
-  object$rcrd[, cols_tmstmp][object$rcrd[, cols_tmstmp] == "[not completed]"] <- NA
-  object$rcrd[, cols_tmstmp] <- lapply(object$rcrd[, cols_tmstmp], as.POSIXct)
+  ### Drop timestamp values recorded as 'not completed'. (Done already during previous step)
+  # object$rcrd[, cols_tmstmp][object$rcrd[, cols_tmstmp] == "[not completed]"] <- NA
+  # object$rcrd[, cols_tmstmp] <- lapply(object$rcrd[, cols_tmstmp], as.POSIXct)
 
   ## Create list with name, columns, events, and repeating status by form
   form_data <- sapply(forms, function(form) {
