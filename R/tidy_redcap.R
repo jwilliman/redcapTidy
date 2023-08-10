@@ -128,7 +128,7 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 #'
 #' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 #' @importFrom utils read.csv
-#' @importFrom checkmate assert_true
+#' @importFrom checkmate assert_true test_true
 #' @export
 #'
 
@@ -144,7 +144,7 @@ rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL) {
   ## Check if study is longitudinal and if required files exist
   if(is.null(longitudinal)) {
 
-    files_long <- test_true(
+    files_long <- checkmate::test_true(
       any(grepl("Events", files_csv)) &
         any(grepl("Instrument", files_csv)))
 
