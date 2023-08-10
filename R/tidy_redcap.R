@@ -24,6 +24,10 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
   if(!identical(names(dictionary), dictionary_tidy_names))
     names(dictionary) <- dictionary_tidy_names
 
+  ## Fields actually present in downloaded dataset
+  cols_data <- names(data)
+
+
 ## Character fields (replace blanks with NA)
   cols_chr <- names(data)[sapply(data, is.character)]
   for (x in cols_chr)
@@ -31,16 +35,21 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 
 
 ## Dates and date-time variables to Dates or POSIXct variables, correcting empty date fields
-  cols_dt <- dictionary$field_name[
+  cols_dt <- intersect(
+    cols_data,
+    dictionary$field_name[
     grepl("date_", dictionary$text_validation_type_or_show_slider_number)]
+  )
 
   for(col in cols_dt) {
     data[, col] <- as.character(data[, col]) |> as.Date(format = "%Y-%m-%d")
   }
 
-  cols_dttm <- c(
-    dictionary$field_name[grepl("datetime_", dictionary$text_validation_type_or_show_slider_number)],
-    grep("timestamp", names(data), value = TRUE))
+  cols_dttm <- intersect(
+    cols_data, c(
+      dictionary$field_name[grepl("datetime_", dictionary$text_validation_type_or_show_slider_number)],
+      grep("timestamp", names(data), value = TRUE))
+  )
 
   for(col in cols_dttm) {
     data[, col] <- as.character(data[, col]) |> as.POSIXct(format = "%Y-%m-%d %H:%M")
@@ -51,7 +60,7 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 
     cols_yn <- intersect(
       ## Ensure returned names are in the extracted dataset
-      names(data),
+      cols_data,
 
       unique(c(
         ## Retrieve names of all binary fields coded as 0, 1
@@ -115,13 +124,44 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 #'   'Designate Instruments for My Events' tab), and the raw Record data (under
 #'   the 'My Reports & Exports' tab). All files should be saved as .csv.
 #' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
+#' @param longitudinal Is the study longitudinal or not. If longitudinal, then event and instrument mapping files should be provided as well.
 #'
 #' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 #' @importFrom utils read.csv
 #' @export
 #'
 
-rc_read_csv <- function(folder, yesno = "logical") {
+rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL) {
+
+  files_csv <- list.files(folder, ".csv")
+
+  ## Check that the required files are present
+  assert_true(any(grepl("_DATA_", files_csv)), .var.name = "REDCap Data file")
+  assert_true(any(grepl("_DataDictionary_", files_csv)), .var.name = "REDCap Data dictionary file")
+
+
+  ## Check if study is longitudinal and if required files exist
+  if(is.null(longitudinal)) {
+
+    files_long <- test_true(
+      any(grepl("Events", files_csv)) &
+        any(grepl("Instrument", files_csv)))
+
+
+    if(files_long)
+      longitudinal = TRUE
+    else
+      longitudinal = FALSE
+
+  } else {
+
+    if(longitudinal) {
+
+      assert_true(any(grepl("_Events_", files_csv)), .var.name = "REDCap Events file")
+      assert_true(any(grepl("_Instruments_", files_csv)), .var.name = "REDCap Instrument file")
+
+    }
+  }
 
 
   ## Collect names of input data files ----------------------------------------
