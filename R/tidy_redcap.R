@@ -128,6 +128,7 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 #'
 #' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 #' @importFrom utils read.csv
+#' @importFrom checkmate assert_true
 #' @export
 #'
 
@@ -136,8 +137,8 @@ rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL) {
   files_csv <- list.files(folder, ".csv")
 
   ## Check that the required files are present
-  assert_true(any(grepl("_DATA_", files_csv)), .var.name = "REDCap Data file")
-  assert_true(any(grepl("_DataDictionary_", files_csv)), .var.name = "REDCap Data dictionary file")
+  checkmate::assert_true(any(grepl("_DATA_", files_csv)), .var.name = "REDCap Data file")
+  checkmate::assert_true(any(grepl("_DataDictionary_", files_csv)), .var.name = "REDCap Data dictionary file")
 
 
   ## Check if study is longitudinal and if required files exist
@@ -157,8 +158,8 @@ rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL) {
 
     if(longitudinal) {
 
-      assert_true(any(grepl("_Events_", files_csv)), .var.name = "REDCap Events file")
-      assert_true(any(grepl("_Instruments_", files_csv)), .var.name = "REDCap Instrument file")
+      checkmate::assert_true(any(grepl("_Events_", files_csv)), .var.name = "REDCap Events file")
+      checkmate::assert_true(any(grepl("_Instruments_", files_csv)), .var.name = "REDCap Instrument file")
 
     }
   }
