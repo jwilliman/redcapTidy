@@ -132,7 +132,7 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 #' @export
 #'
 
-rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL) {
+rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL, tidy_formats = TRUE) {
 
   files_csv <- list.files(folder, ".csv")
 
@@ -196,7 +196,10 @@ rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL) {
     "matrix_group_name", "matrix_ranking", "field_annotation")
 
   ## Tidy formatting of variables in dataset
-  object$rcrd <- rc_format_variables(data = object$rcrd, dictionary = object$dd, yesno = yesno)
+  if(tidy_formats)
+  {
+    object$rcrd <- rc_format_variables(data = object$rcrd, dictionary = object$dd, yesno = yesno)
+  }
 
   ## Return object
   return(object)
