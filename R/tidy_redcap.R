@@ -125,6 +125,7 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 #'   the 'My Reports & Exports' tab). All files should be saved as .csv.
 #' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
 #' @param longitudinal Is the study longitudinal or not. If longitudinal, then event and instrument mapping files should be provided as well.
+#' @param tidy_format Tidy variable formats or not?
 #'
 #' @return A named list containing four data frames: dd = metadata, evnt = Events, inst = Instrument mappings, rcrd = Records.
 #' @importFrom utils read.csv
