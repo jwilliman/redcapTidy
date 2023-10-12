@@ -80,12 +80,12 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 
     ## To numeric (0 or 1)
     if(yesno == "numeric")
-      data[, cols_yn] <- lapply(data[, cols_yn], redcapAPI::redcapFactorFlip)
+      data[, cols_yn] <- lapply(data[, cols_yn], as.logical(x) |> as.integer())
 
     ## To logical
     else if(yesno == "logical")
       data[, cols_yn] <- lapply(
-        data[, cols_yn], function(x) as.logical(redcapAPI::redcapFactorFlip(x)))
+        data[, cols_yn], as.logical)
 
   }
 
