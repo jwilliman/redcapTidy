@@ -342,7 +342,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
   if(all(sapply(object$rcrd[, cols_cmp], is.numeric))) {
 
     object$rcrd[, cols_cmp] <- lapply(object$rcrd[, cols_cmp], function(x)
-      factor(x, levels = c("Incomplete", "Unverified", "Complete")))
+      factor(x, levels = 1:3, labels = c("Incomplete", "Unverified", "Complete")))
 
   } else {
 
