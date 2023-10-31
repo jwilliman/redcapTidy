@@ -239,7 +239,9 @@ rc_read_api <- function(url, token, yesno = "logical", labels = FALSE) {
     inst = redcapAPI::exportMappings(rcon),
     rcrd = redcapAPI::exportRecordsTyped(
       rcon, labels = labels, dag = TRUE, cast = list(
-        checkbox = redcapAPI::castRaw, date_ = as.Date
+        system   = redcapAPI::castRaw,
+        date_    = as.Date,
+        checkbox = redcapAPI::castRaw
       ))
   )
 
@@ -372,8 +374,8 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
     cols <- intersect(cols, names(object$rcrd))
 
     if("evnt" %in% names(object))
-      # events <- object$inst$unique_event_name[object$inst$form == form]
-      events <- unique(object$rcrd$redcap_event_name)
+      events <- object$inst$unique_event_name[object$inst$form == form]
+      # events <- unique(object$rcrd$redcap_event_name)
 
     else
       events <- NA
@@ -474,8 +476,8 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
   if("evnt" %in% names(object)) {
 
     # events <- object$evnt$unique_event_name Not all defined events have instuments attached to them.
-    # events <- unique(object$inst$unique_event_name)
-    events <- setNames(unique(object$rcrd$redcap_event_name), unique(object$rcrd$redcap_event_name))
+    events <- unique(object$inst$unique_event_name)
+    # events <- setNames(unique(object$rcrd$redcap_event_name), unique(object$rcrd$redcap_event_name))
 
     dat_ed$event <- sapply(events, function(event) {
 
