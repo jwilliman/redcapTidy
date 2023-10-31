@@ -372,7 +372,9 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
     cols <- intersect(cols, names(object$rcrd))
 
     if("evnt" %in% names(object))
-      events <- object$inst$unique_event_name[object$inst$form == form]
+      # events <- object$inst$unique_event_name[object$inst$form == form]
+      events <- unique(object$rcrd$redcap_event_name)
+
     else
       events <- NA
     repeating <- form %in% forms_rpt
@@ -472,7 +474,8 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
   if("evnt" %in% names(object)) {
 
     # events <- object$evnt$unique_event_name Not all defined events have instuments attached to them.
-    events <- unique(object$inst$unique_event_name)
+    # events <- unique(object$inst$unique_event_name)
+    events <- setNames(unique(object$rcrd$redcap_event_name), unique(object$rcrd$redcap_event_name))
 
     dat_ed$event <- sapply(events, function(event) {
 
@@ -547,7 +550,7 @@ rc_tidy <- function(object, ids = NULL, label = FALSE, label_checkbox = TRUE, re
               ## Just return choice value
               else if(is.logical(label_checkbox) & label_checkbox)
                 return(unname(cb_label))
-              ## Just return field labbel
+              ## Just return field label
               else
                 return(x_dd$field_label)
             } else {
