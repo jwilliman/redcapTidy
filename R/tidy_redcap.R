@@ -237,9 +237,10 @@ rc_read_api <- function(url, token, yesno = "logical", labels = FALSE) {
     dd   = redcapAPI::exportMetaData(rcon),
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
-    rcrd = redcapAPI::exportRecords(
-      rcon, factors = TRUE, labels = labels, dates = FALSE, dag = TRUE, checkboxLabels = TRUE)
-
+    rcrd = redcapAPI::exportRecordsTyped(
+      rcon, labels = labels, dag = TRUE, cast = list(
+        checkbox = redcapAPI::castRaw, date_ = as.Date
+      ))
   )
 
   ## Tidy formatting of variables in dataset
