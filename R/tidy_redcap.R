@@ -217,8 +217,8 @@ rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL, tidy_for
 #' @param url URL for a REDCap database API. Check your institution's REDCap
 #'   documentation for this address.
 #' @param token REDCap API token
-#' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
-#' @param labels Passed to `redcapAPI::exportRecords`, determines if the variable labels are applied to the data frame. `FALSE` by default.
+#' @param cast Passed to `redcapAPI::exportRecordsTyped`, determines how different types of fields are returned. By default, all checkbox and yesno fields are returned as logical.
+#' @param labels Passed to `redcapAPI::exportRecordsTyped`, determines if the variable labels are applied to the data frame. `FALSE` by default.
 #'
 #' @return A named list containing four dataframes: dd = metadata, evnt =
 #'   Events, inst = Instrument mappings, rcrd = Records.
@@ -226,7 +226,12 @@ rc_read_csv <- function(folder, yesno = "logical", longitudinal = NULL, tidy_for
 #' @export
 #'
 
-rc_read_api <- function(url, token, yesno = "logical", labels = FALSE) {
+rc_read_api <- function(url, token, labels = FALSE, cast = list(
+  system   = redcapAPI::castRaw,
+  date_    = as.Date,
+  yesno    = function(x, ...) x == '1' | tolower(x) == 'yes',
+  checkbox = function(x, ...) redcapAPI::castRaw(x, ...) |> as.logical()
+)) {
 
   rcon <- redcapAPI::redcapConnection(url=url, token=token)
   #redcapAPI::exportBundle(rcon)
@@ -238,12 +243,8 @@ rc_read_api <- function(url, token, yesno = "logical", labels = FALSE) {
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
     rcrd = redcapAPI::exportRecordsTyped(
-      rcon, labels = labels, dag = TRUE, cast = list(
-        system   = redcapAPI::castRaw,
-        date_    = as.Date,
-        checkbox = redcapAPI::castRaw
-      ))
-  )
+      rcon, labels = labels, dag = TRUE, cast = cast
+  ))
 
   ## Tidy formatting of variables in dataset
   object$rcrd <- rc_format_variables(data = object$rcrd, dictionary = object$dd)
