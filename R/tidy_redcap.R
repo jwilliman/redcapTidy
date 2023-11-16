@@ -1,8 +1,7 @@
-
-#' Clean variable types of raw data export
+#' Clean variable types of raw data export via CSV
 #'
-#' @param data Data exported from REDCap via csv or API call.
-#' @param dictionary Data dictionary exported from REDCap via csv or API call.
+#' @param data Data exported from REDCap via csv.
+#' @param dictionary Data dictionary exported from REDCap via csv.
 #' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
 #'
 #' @return The REDCap dataset with variable types cleaned.
@@ -35,16 +34,83 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
 
 
 ## Dates and date-time variables to Dates or POSIXct variables, correcting empty date fields
-  cols_dt <- intersect(
-    cols_data,
-    dictionary$field_name[
-    grepl("date_", dictionary$text_validation_type_or_show_slider_number)]
+   cols_dttm <- intersect(
+    cols_data, c(
+      dictionary$field_name[grepl("datetime_", dictionary$text_validation_type_or_show_slider_number)],
+      grep("timestamp", names(data), value = TRUE))
   )
 
-  for(col in cols_dt) {
-    data[, col] <- as.character(data[, col]) |> as.Date(format = "%Y-%m-%d")
+  for(col in cols_dttm) {
+    data[, col] <- as.character(data[, col]) |> as.POSIXct(format = "%Y-%m-%d %H:%M")
   }
 
+  ## Logical variables (yesno radios and checkboxs)
+  if(yesno != "factor") {
+
+    cols_yn <- intersect(
+      ## Ensure returned names are in the extracted dataset
+      cols_data,
+
+      unique(
+        ## Retrieve names of all binary fields coded as 0, 1
+        dictionary$field_name[
+
+            dictionary$select_choices_or_calculations %in% c(
+              "0, Incorrect | 1, Correct", "1, Correct | 0, Incorrect",
+              "0, No | 1, Yes", "1, Yes | 0, No",
+              "1, True | 0, False", "0, False | 1, True")])
+
+    )
+
+    ## To logical
+    data[, cols_yn] <- lapply(data[, cols_yn], \(x) tolower(x) == "yes" | tolower(x) == "correct" | tolower(x) == "true")
+
+    ## To numeric (0 or 1)
+    if(yesno == "numeric")
+      data[, cols_yn] <- lapply(data[, cols_yn], as.logical(x) |> as.integer())
+
+  }
+
+  return(data)
+
+}
+
+#' Clean variable types following API call
+#'
+#' @param data Data exported from REDCap via API call.
+#' @param dictionary Data dictionary exported from REDCap API call.
+#' @param yesno Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.
+#'
+#' @return The REDCap dataset with variable types cleaned.
+#' @importFrom redcapAPI redcapFactorFlip
+#' @export
+#'
+
+rc_format_api <- function(data, dictionary, yesno = "logical") {
+
+  ## Tidy data dictionary names
+  dictionary_tidy_names <-  c(
+    "field_name", "form_name", "section_header", "field_type", "field_label",
+    "select_choices_or_calculations", "field_note",
+    "text_validation_type_or_show_slider_number", "text_validation_min",
+    "text_validation_max", "identifier", "branching_logic",
+    "required_field", "custom_alignment", "question_number",
+    "matrix_group_name", "matrix_ranking", "field_annotation")
+
+  if(!identical(names(dictionary), dictionary_tidy_names))
+    names(dictionary) <- dictionary_tidy_names
+
+  ## Fields actually present in downloaded dataset
+  cols_data <- names(data)
+
+
+  ## Character fields (replace blanks with NA)
+  cols_chr <- names(data)[sapply(data, is.character)]
+  for (x in cols_chr)
+    data[, x][data[, x] == ""] <- NA
+
+
+  ## Dates and date-time variables to Dates or POSIXct variables, correcting empty date fields
   cols_dttm <- intersect(
     cols_data, c(
       dictionary$field_name[grepl("datetime_", dictionary$text_validation_type_or_show_slider_number)],
@@ -62,55 +128,29 @@ rc_format_variables <- function(data, dictionary, yesno = "logical") {
       ## Ensure returned names are in the extracted dataset
       cols_data,
 
-      unique(c(
+      unique(
         ## Retrieve names of all binary fields coded as 0, 1
         dictionary$field_name[
-          dictionary$field_type == "yesno" |
-            dictionary$select_choices_or_calculations %in% c(
-              "0, Incorrect | 1, Correct", "1, Correct | 0, Incorrect",
-              "0, No | 1, Yes", "1, Yes | 0, No",
-              "1, True | 0, False", "0, False | 1, True")],
 
-        ## Retrieve/create names of all checkbox fields
-        unlist(sapply(dictionary$field_name[dictionary$field_type == "checkbox"], function(x)
-          grep(paste0(x, "___"), names(data), value = TRUE)))))
+          dictionary$select_choices_or_calculations %in% c(
+            "0, Incorrect | 1, Correct", "1, Correct | 0, Incorrect",
+            "0, No | 1, Yes", "1, Yes | 0, No",
+            "1, True | 0, False", "0, False | 1, True")])
 
     )
 
+    ## To logical
+    data[, cols_yn] <- lapply(data[, cols_yn], \(x) tolower(x) == "yes" | tolower(x) == "correct" | tolower(x) == "true")
 
     ## To numeric (0 or 1)
     if(yesno == "numeric")
       data[, cols_yn] <- lapply(data[, cols_yn], as.logical(x) |> as.integer())
 
-    ## To logical
-    else if(yesno == "logical")
-      data[, cols_yn] <- lapply(
-        data[, cols_yn], as.logical)
-
   }
-
-  ## Factors (radio)
-  cols_fct <- intersect(
-    dictionary$field_name[
-      dictionary$field_type %in% c("radio", "dropdown") & !(dictionary$field_name %in% cols_yn)],
-    # Check variable hasn't already been converted
-    names(data)[sapply(data, is.numeric)]
-  )
-
-  fct_label <- function(x) {
-    ## Replace first ',' with '|' before repeating split.
-    lbls <- sapply(strsplit(sub(",", "|", strsplit(
-      dictionary$select_choices_or_calculations[dictionary$field_name == x],
-      split = "\\|")[[1]]), "\\|"), trimws)
-    factor(data[, x], levels = lbls[1, ], labels = lbls[2, ])
-  }
-
-  data[, cols_fct] <- lapply(cols_fct, fct_label)
 
   return(data)
 
 }
-
 
 
 
@@ -247,7 +287,7 @@ rc_read_api <- function(url, token, labels = FALSE, cast = list(
   ))
 
   ## Tidy formatting of variables in dataset
-  object$rcrd <- rc_format_variables(data = object$rcrd, dictionary = object$dd)
+  object$rcrd <- rc_format_api(data = object$rcrd, dictionary = object$dd)
 
   return(object)
 

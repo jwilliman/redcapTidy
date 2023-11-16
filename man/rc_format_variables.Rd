@@ -2,14 +2,14 @@
 % Please edit documentation in R/tidy_redcap.R
 \name{rc_format_variables}
 \alias{rc_format_variables}
-\title{Clean variable types of raw data export}
+\title{Clean variable types of raw data export via CSV}
 \usage{
 rc_format_variables(data, dictionary, yesno = "logical")
 }
 \arguments{
-\item{data}{Data exported from REDCap via csv or API call.}
+\item{data}{Data exported from REDCap via csv.}
 
-\item{dictionary}{Data dictionary exported from REDCap via csv or API call.}
+\item{dictionary}{Data dictionary exported from REDCap via csv.}
 
 \item{yesno}{Determine how to return REDCap 'Yes - No' fields; options include 'factor' (default), 'numeric', or 'logical'.}
 }
@@ -17,5 +17,5 @@ rc_format_variables(data, dictionary, yesno = "logical")
 The REDCap dataset with variable types cleaned.
 }
 \description{
-Clean variable types of raw data export
+Clean variable types of raw data export via CSV
 }

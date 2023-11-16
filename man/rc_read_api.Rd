@@ -21,7 +21,7 @@ documentation for this address.}
 
 \item{labels}{Passed to `redcapAPI::exportRecordsTyped`, determines if the variable labels are applied to the data frame. `FALSE` by default.}
 
-\item{cast}{Passed to `redcapAPI::exportRecordsTyped`, determines how different types of fields are returned. By default all checkboxs and yesno fields are returned as logical.}
+\item{cast}{Passed to `redcapAPI::exportRecordsTyped`, determines how different types of fields are returned. By default, all checkbox and yesno fields are returned as logical.}
 }
 \value{
 A named list containing four dataframes: dd = metadata, evnt =
