@@ -283,7 +283,7 @@ rc_read_api <- function(url, token, labels = FALSE, cast = list(
     evnt = redcapAPI::exportEvents(rcon),
     inst = redcapAPI::exportMappings(rcon),
     rcrd = redcapAPI::exportRecordsTyped(
-      rcon, labels = labels, dag = TRUE, cast = cast
+      rcon, dag = TRUE, cast = cast# , labels = labels
   ))
 
   ## Tidy formatting of variables in dataset
